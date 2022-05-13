@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: xfs-disk-setup
+  namespace: xfs-disk-setup
+  labels:
+    app: xfs-disk-setup
+spec:
+  selector:
+    matchLabels:
+      app: xfs-disk-setup
+  template:
+    metadata:
+      labels:
+        app: xfs-disk-setup
+    spec:
+      containers:
+      - name: xfs-disk-setup
+        image: quay.io/scylladb/scylla-operator-images:node-setup
+        imagePullPolicy: IfNotPresent
+        command:
+        - "/bin/bash"
+        - "-euExo"
+        - "pipefail"
+        - "-O"
+        - "inherit_errexit"
+        - "-c"
+        - |
+          mkdir -p /host/var/persistent-volumes/
+          if [[ ! -f "/host/var/persistent-volumes/persistent-volume-image.xfs" ]]; then
+            dd if=/dev/zero of=/host/var/persistent-volumes/persistent-volume-image.xfs bs=1024 count=0 seek=10485760
+          fi
+          
+          if [[ $( blkid -o value -s TYPE "/host/var/persistent-volumes/persistent-volume-image.xfs" ) != "xfs" ]]; then
+            mkfs -t xfs /host/var/persistent-volumes/persistent-volume-image.xfs
+          fi
+          
+          mkdir -p /host/mnt/persistent-volume
+          mount -o prjquota /host/var/persistent-volumes/persistent-volume-image.xfs /host/mnt/persistent-volume
+          
+          sleep infinity
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: hostfs
+          mountPath: /host
+          mountPropagation: Bidirectional
+      volumes:
+      - name: hostfs
+        hostPath:
+          path: /
