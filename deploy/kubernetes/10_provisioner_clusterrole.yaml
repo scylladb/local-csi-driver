@@ -1,0 +1,56 @@
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: csi-external-provisioner
+rules:
+# The following rule should be uncommented for plugins that require secrets
+# for provisioning.
+# - apiGroups: [""]
+#   resources: ["secrets"]
+#   verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["persistentvolumes"]
+  verbs: ["get", "list", "watch", "create", "delete"]
+- apiGroups: [""]
+  resources: ["persistentvolumeclaims"]
+  verbs: ["get", "list", "watch", "update"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["list", "watch", "create", "update", "patch"]
+- apiGroups: ["snapshot.storage.k8s.io"]
+  resources: ["volumesnapshots"]
+  verbs: ["get", "list"]
+- apiGroups: ["snapshot.storage.k8s.io"]
+  resources: ["volumesnapshotcontents"]
+  verbs: ["get", "list"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["csinodes"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list", "watch"]
+# Access to volumeattachments is only needed when the CSI driver
+# has the PUBLISH_UNPUBLISH_VOLUME controller capability.
+# In that case, external-provisioner will watch volumeasttachments
+# to determine when it is safe to delete a volume.
+- apiGroups: ["storage.k8s.io"]
+  resources: ["volumeattachments"]
+  verbs: ["get", "list", "watch"]
+# Permissions for CSIStorageCapacity are only needed enabling the publishing
+# of storage capacity information.
+- apiGroups: ["storage.k8s.io"]
+  resources: ["csistoragecapacities"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# The GET permissions below are needed for walking up the ownership chain
+# for CSIStorageCapacity. They are sufficient for deployment via
+# StatefulSet (only needs to get Pod) and Deployment (needs to get
+# Pod and then ReplicaSet to find the Deployment).
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get"]
+- apiGroups: ["apps"]
+  resources: ["replicasets"]
+  verbs: ["get"]

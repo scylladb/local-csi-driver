@@ -1,0 +1,143 @@
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: xfs-csi-driver
+  namespace: xfs-csi-driver
+  labels:
+    app.kubernetes.io/name: xfs-csi-driver
+spec:
+  selector:
+    matchLabels:
+      app: xfs-csi-node
+      app.kubernetes.io/name: xfs-csi-driver
+      app.kubernetes.io/instance: xfs-csi-driver
+  template:
+    metadata:
+      labels:
+        app: xfs-csi-node
+        app.kubernetes.io/name: xfs-csi-driver
+        app.kubernetes.io/instance: xfs-csi-driver
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+      hostNetwork: true
+      dnsPolicy: ClusterFirst
+      serviceAccountName: xfs-csi-driver
+      priorityClassName: system-node-critical
+      tolerations:
+      - operator: Exists
+      containers:
+      - name: xfs-plugin
+        securityContext:
+          privileged: true
+        image: scylladb/xfs-csi-driver:latest
+        imagePullPolicy: IfNotPresent
+        args:
+        - --endpoint=$(CSI_ENDPOINT)
+        - --node-name=$(KUBE_NODE_NAME)
+        - --xfs-data-dir=$(XFS_DATA_DIR)
+        - --v=4
+        env:
+        - name: CSI_ENDPOINT
+          value: unix://csi/csi.sock
+        - name: KUBE_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: XFS_DATA_DIR
+          value: /mnt/xfs
+        volumeMounts:
+        - name: kubelet-dir
+          mountPath: /var/lib/kubelet
+          mountPropagation: "Bidirectional"
+        - name: plugin-dir
+          mountPath: /csi
+        - name: xfs-data-dir
+          mountPath: /mnt/xfs
+        ports:
+        - name: healthz
+          containerPort: 9809
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: healthz
+          initialDelaySeconds: 10
+          timeoutSeconds: 3
+          periodSeconds: 2
+          failureThreshold: 5
+      - name: csi-driver-registrar
+        image:  k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.5.0
+        imagePullPolicy: IfNotPresent
+        args:
+        - --csi-address=$(ADDRESS)
+        - --kubelet-registration-path=/var/lib/kubelet/plugins/xfs.csi.scylladb.com/csi.sock
+        env:
+        - name: ADDRESS
+          value: /csi/csi.sock
+        - name: DRIVER_REG_SOCK_PATH
+          value: /var/lib/kubelet/plugins/xfs.csi.scylladb.com/csi.sock
+        volumeMounts:
+        - name: plugin-dir
+          mountPath: /csi
+        - name: registration-dir
+          mountPath: /registration
+      - name: liveness-probe
+        image: k8s.gcr.io/sig-storage/livenessprobe:v2.5.0
+        imagePullPolicy: IfNotPresent
+        args:
+        - --csi-address=$(ADDRESS)
+        - --health-port=9809
+        - --v=2
+        env:
+        - name: ADDRESS
+          value: /csi/csi.sock
+        volumeMounts:
+        - name: plugin-dir
+          mountPath: /csi
+      - name: csi-provisioner
+        image: k8s.gcr.io/sig-storage/csi-provisioner:v3.1.0
+        imagePullPolicy: IfNotPresent
+        args:
+        - --csi-address=$(ADDRESS)
+        - --v=2
+        - --node-deployment
+        - --feature-gates=Topology=true
+        - --immediate-topology=false
+        - --enable-capacity
+        - --capacity-poll-interval=30s
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: ADDRESS
+          value: /csi/csi.sock
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        volumeMounts:
+        - name: plugin-dir
+          mountPath: /csi
+      volumes:
+      - name: kubelet-dir
+        hostPath:
+          path: /var/lib/kubelet
+          type: Directory
+      - name: plugin-dir
+        hostPath:
+          path: /var/lib/kubelet/plugins/xfs.csi.scylladb.com/
+          type: DirectoryOrCreate
+      - name: registration-dir
+        hostPath:
+          path: /var/lib/kubelet/plugins_registry/
+          type: Directory
+      - name: xfs-data-dir
+        hostPath:
+          path: /mnt/persistent-volume
+          type: Directory
