@@ -1,0 +1,326 @@
+# Copyright (C) 2021 ScyllaDB
+
+name: Build & Test
+
+on:
+  push:
+    # Restrict the branches to only those we want to promote from.
+    branches:
+    - 'master'
+    - 'v[0-9]+.[0-9]+'
+    # Act only on temporary tags, the final ones are created by manually promoting
+    # an existing candidate image, after it goes through QA. We need to be carefull
+    # to avoid overwritting those, building from the same sources may not result
+    # in the same image content that was tested, e.g. if a base image changed in the meantime.
+    tags:
+    - 'v[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+'
+    - 'v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+'
+    - 'v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+'
+  pull_request:
+    branches:
+    - '**'
+    types:
+    - opened
+    - edited
+    - reopened
+    - synchronize
+
+env:
+  go_version: 1.17.2
+  GOPATH: ${{ github.workspace }}/go
+  git_repo_path: ${{ github.workspace }}/go/src/github.com/zimnx/xfs-csi-driver
+  image_repo_ref: docker.io/zimnx/xfs-csi-driver
+  retention_days: 90
+
+defaults:
+  run:
+    shell: bash
+    working-directory: "./go/src/github.com/zimnx/xfs-csi-driver"
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        path: ${{ env.git_repo_path }}
+    - name: Setup go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ env.go_version }}
+    - name: Install tools
+      run: |
+        set -x
+        go install github.com/mikefarah/yq/v4@v4.11.2
+    - name: Verify
+      run: make verify --warn-undefined-variables
+
+  verify-deps:
+    name: Verify dependencies
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        path: ${{ env.git_repo_path }}
+    - name: Setup go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ env.go_version }}
+    - name: Verify dependencies
+      run: make verify-deps --warn-undefined-variables
+
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        path: ${{ env.git_repo_path }}
+        fetch-depth: 0
+    - name: Setup git tags
+      if: ${{ startsWith(github.ref, 'refs/tags/') }}
+      run: ./hack/ci-detect-tags.sh
+    - name: Setup go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ env.go_version }}
+    - name: Build
+      run: make --warn-undefined-variables
+    - name: Make sure new unit tests aren't flaky
+      if: ${{ github.event_name == 'pull_request' }}
+      run: |
+        echo "GO_TEST_COUNT=-count=3" | tee -a ${GITHUB_ENV}
+    - name: Test
+      run: make test --warn-undefined-variables
+
+  images:
+    name: Build images
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        path: ${{ env.git_repo_path }}
+        fetch-depth: 0  # also fetch tags
+    - name: Setup git tags
+      if: ${{ startsWith(github.ref, 'refs/tags/') }}
+      run: ./hack/ci-detect-tags.sh
+    - name: Install podman
+      run: |
+        set -x
+        # Install nativelly when we have Ubuntu >= 20.10
+        . /etc/os-release
+        echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/ /" | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
+        curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/Release.key | sudo apt-key add -
+        sudo apt-get update
+        sudo apt-get -y install podman
+    - name: Build image
+      run: |
+        set -x
+        # Avoid podman permission error on Ubuntu 20.04 by using it as root, although it shouldn't be needed.
+        # Use --format=docker to support SHELL instruction in the Dockerfile. (SHELL didn't make it to OCI spec.)
+        sudo podman build --format=docker --squash -f ./Dockerfile -t '${{ env.image_repo_ref }}:ci' .
+        sudo podman images '${{ env.image_repo_ref }}:ci'
+        sudo podman save '${{ env.image_repo_ref }}:ci' | lz4 - ~/driverimage.tar.lz4
+    - name: Upload image artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: driverimage.tar.lz4
+        path: ~/driverimage.tar.lz4
+        if-no-files-found: error
+        retention-days: ${{ env.retention_days }}
+
+  test-e2e:
+    name: Test e2e
+    runs-on: ubuntu-20.04
+    needs: images
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        path: ${{ env.git_repo_path }}
+        fetch-depth: 0  # also fetch tags
+    - name: Setup git tags
+      if: ${{ startsWith(github.ref, 'refs/tags/') }}
+      run: ./hack/ci-detect-tags.sh
+    - name: Create artifacts dir
+      env:
+        ARTIFACTS_DIR: ${{ runner.temp }}/e2e-artifacts
+      run: |
+        set -x
+        mkdir "${ARTIFACTS_DIR}"
+        echo "ARTIFACTS_DIR=${ARTIFACTS_DIR}" | tee -a ${GITHUB_ENV}
+    - uses: actions/download-artifact@v2
+      with:
+        name: driverimage.tar.lz4
+        path: ~/
+    - name: Load image
+      run: |
+        set -x
+        unlz4 ~/driverimage.tar.lz4 - | docker load
+        # docker looses the registry part on save/load
+        docker tag "$( echo "${image_repo_ref}:ci" | sed -E -e 's~[^/]+/(.*)~\1~' )" "${image_repo_ref}:ci"
+        docker images '${{ env.image_repo_ref }}:ci'
+    - name: Setup go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ env.go_version }}
+    - name: Install tools
+      run: |
+        set -x
+        go install github.com/mikefarah/yq/v4@v4.6.1
+    - name: Setup minikube
+      uses: ./go/src/github.com/zimnx/xfs-csi-driver/.github/actions/setup-minikube
+    - name: Deploy xfs-csi-driver
+      run: |
+        set -x
+        timeout 10m ./hack/ci-deploy.sh '${{ env.image_repo_ref }}:ci'
+        kubectl get pods -A
+    - name: Tolerate flakes on promotion jobs
+      if: ${{ github.event_name != 'pull_request' }}
+      run: |
+        echo "FLAKE_ATTEMPTS=5" | tee -a ${GITHUB_ENV}
+    - name: Run e2e
+      run: |
+        set -euExo pipefail
+
+        e2e_timeout_minutes=120
+        flake_attempts=0
+        if [[ -v 'FLAKE_ATTEMPTS' ]]; then
+          flake_attempts="${FLAKE_ATTEMPTS}"
+          e2e_timeout_minutes="$(( ${e2e_timeout_minutes} + ${flake_attempts} * 10 ))"
+        fi
+
+        timeout "${e2e_timeout_minutes}m" docker run --user="$( id -u ):$( id -g )" --rm \
+        --entrypoint=/usr/bin/xfs-csi-driver-tests \
+        -v="${ARTIFACTS_DIR}:${ARTIFACTS_DIR}:rw" \
+        -v="${HOME}/.kube/config:/kubeconfig:ro" -e='KUBECONFIG=/kubeconfig' \
+        '${{ env.image_repo_ref }}:ci' run --artifacts-dir="${ARTIFACTS_DIR}" --flake-attempts="${flake_attempts}"
+    - name: Dump cluster state
+      if: ${{ always() }}
+      working-directory: ${{ runner.temp }}
+      run: timeout 10m ${{ env.git_repo_path }}/hack/ci-gather-artifacts.sh
+    - name: Get machine logs and info
+      if: ${{ always() }}
+      working-directory: ${{ runner.temp }}/e2e-artifacts
+      run: |
+        set -euExo pipefail
+        shopt -s inherit_errexit
+
+        docker info > docker.info
+        docker images -a > docker.images
+        docker stats -a --no-stream --no-trunc > docker.stats
+        free -h > free
+        journalctl -u kubelet > kubelet.log
+
+        sudo tar -c --use-compress-program=lz4 -f ./kubernetes.tar.lz4 "/etc/kubernetes"
+
+        mkdir container-logs
+        for ns in kube-system; do
+          mkdir "container-logs/${ns}"
+          for cid in $( sudo crictl ps --label="io.kubernetes.pod.namespace=${ns}" -a -q ); do
+            cname=$( sudo crictl inspect -o go-template --template='{{ .status.metadata.name }}' "${cid}" )
+            sudo crictl logs "${cid}" 1>"container-logs/${ns}/${cname}_${cid}.log" 2>&1
+          done
+        done
+    - name: Collect audit logs
+      if: ${{ always() }}
+      working-directory: ${{ runner.temp }}/e2e-artifacts
+      run: |
+        set -euEx -o pipefail
+        sudo cat $( ls /var/log/kube-apiserver-audit*.log | sort -n ) > ./kube-apiserver-audit.log
+        jq -s 'group_by(.user.username) | map({"user": .[0].user.username, "total": length, "verbs": (group_by(.verb) | map({"key":.[0].verb, "value": length}) | from_entries)}) | sort_by(.total) | reverse' ./kube-apiserver-audit.log > ./api-call-stats.json
+    - name: Compress artifacts
+      if: ${{ always() }}
+      working-directory: ${{ runner.temp }}
+      run: |
+        set -x
+        tar -c --use-compress-program=lz4 -f ./e2e-artifacts.tar.lz4 "e2e-artifacts/"
+    - name: Upload artifacts
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v2
+      with:
+        name: e2e-artifacts.tar.lz4
+        path: ${{ runner.temp }}/e2e-artifacts.tar.lz4
+        if-no-files-found: error
+        retention-days: ${{ env.retention_days }}
+
+  # Dummy step for different promotion jobs to depend on
+  success:
+    name: All tests successfull
+    runs-on: ubuntu-20.04
+    needs:
+    - verify
+    - verify-deps
+    - build-and-test
+    - images
+    - test-e2e
+    steps:
+    - name: Always succeed
+      working-directory: .
+      run: true
+
+  promote:
+    name: Promote artifacts
+    runs-on: ubuntu-20.04
+    needs: [success]
+    if: ${{ github.event_name != 'pull_request' }}
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        path: ${{ env.git_repo_path }}
+        # Helm Chart version needs to be semantic, we need tags in checked out repo to determine latest one.
+        fetch-depth: 0
+    - name: Setup git tags
+      if: ${{ startsWith(github.ref, 'refs/tags/') }}
+      run: ./hack/ci-detect-tags.sh
+    - name: Setup go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ env.go_version }}
+    - name: Determine promotion tag
+      run: |
+        source ./hack/lib/tag-from-gh-ref.sh
+        CI_IMAGE_TAG=$( tag_from_gh_ref "${GITHUB_REF}" )
+        echo "CI_IMAGE_TAG=${CI_IMAGE_TAG}" | tee -a ${GITHUB_ENV}
+    - uses: actions/download-artifact@v2
+      with:
+        name: driverimage.tar.lz4
+        path: ~/
+    - name: Load image
+      run: |
+        set -x
+        unlz4 ~/driverimage.tar.lz4 - | docker load
+        # docker looses the registry part on save/load
+        docker tag "$( echo "${image_repo_ref}:ci" | sed -E -e 's~[^/]+/(.*)~\1~' )" "${image_repo_ref}:ci"
+        docker images '${{ env.image_repo_ref }}:ci'
+    - name: Login to DockerHub
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: Promote image
+      run: |
+        set -x
+        docker tag '${{ env.image_repo_ref }}:ci' '${{ env.image_repo_ref }}:${{ env.CI_IMAGE_TAG }}'
+        docker push '${{ env.image_repo_ref }}:${{ env.CI_IMAGE_TAG }}'
+
+  failure-notifications:
+    name: Failure notifications
+    runs-on: ubuntu-20.04
+    needs:
+    - success
+    - promote
+    if: ${{ failure() && github.event_name != 'pull_request' }}
+    steps:
+    - name: Report failures to Slack
+      if: ${{ always() }}
+      working-directory: .
+      run: |
+        # We have to avoid printing the secret to logs.
+        set +x
+        curl -X POST -H 'Content-type: application/json' --data @<( cat <<-EOF
+        {
+          "text": ":warning: CI workflow \"${{ github.workflow }}\" triggered on \"${{ github.event_name }}\" event from ${{ github.ref }} (${{ github.sha }}) failed!\n:fire_extinguisher: See https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} for details.:fire:\ncc: <@UN90LVATC>"
+        }
+        EOF
+        ) '${{ secrets.SLACK_WEBHOOK_URL }}'
