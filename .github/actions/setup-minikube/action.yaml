@@ -1,0 +1,86 @@
+name: "Setup Minikube"
+description: 'Installs minikube Kubernetes cluster'
+runs:
+  using: "composite"
+  steps:
+  # Minikube with `none` driver and Kubernetes 1.24+ requires cri-dockerd shim to run due to dockershim removal.
+  # We can't use the latest version of the shim due to known bug: https://github.com/kubernetes/minikube/issues/14724
+  - uses: actions/checkout@v3
+    with:
+      repository: Mirantis/cri-dockerd
+      ref: v0.2.6
+      path: ${{ github.workspace }}/go/src/github.com/Mirantis/cri-dockerd
+  - name: Install cri-dockerd
+    shell: bash
+    run: |
+      set -x
+
+      cd ${{ github.workspace }}/go/src/github.com/Mirantis/cri-dockerd
+
+      sudo cp -a packaging/systemd/* /etc/systemd/system
+      sudo sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service
+
+      sudo curl -s --fail -L https://github.com/Mirantis/cri-dockerd/releases/download/v0.2.2/cri-dockerd-0.2.2.amd64.tgz | tar -f - -xz --strip-components 1 -C /usr/local/bin cri-dockerd
+
+      sudo systemctl daemon-reload
+      sudo systemctl enable cri-docker.service
+      sudo systemctl enable --now cri-docker.socket
+      sudo systemctl start cri-docker.service
+  - name: Create artifacts dir
+    if: ${{ failure() }}
+    shell: bash
+    run: |
+      set -x
+      mkdir ${{ runner.temp }}/minikube-artifacts
+  - name: Install minikube
+    shell: bash
+    run: |
+      set -x
+      sudo apt-get install -y --no-install-recommends conntrack
+      sudo curl -s --fail -L https://storage.googleapis.com/minikube/releases/v1.28.0/minikube-linux-amd64 -o /usr/local/bin/minikube
+      sudo chmod +x /usr/local/bin/minikube
+
+      sudo curl -s --fail -L "https://dl.k8s.io/release/v1.25.4/bin/linux/amd64/kubectl" -o /usr/local/bin/kubectl
+      sudo chmod +x /usr/local/bin/kubectl
+      sudo curl -s --fail -L https://github.com/kubernetes-sigs/cri-tools/releases/download/v1.25.0/crictl-v1.25.0-linux-amd64.tar.gz | tar -f - -xz -C /usr/local/bin crictl
+  - name: Configure minikube
+    shell: bash
+    run: |
+      set -x
+      sudo minikube config set driver none
+      sudo minikube config set EmbedCerts true
+  - name: Start minikube
+    shell: bash
+    run: |
+      set -euEx -o pipefail
+
+      # Hack /etc/ssl/certs/ as it's passed down to the KAS static pod.
+      cat << EOF | sudo tee /etc/ssl/certs/audit-policy.yaml > /dev/null
+      apiVersion: audit.k8s.io/v1
+      kind: Policy
+      rules:
+      - level: RequestResponse
+      EOF
+
+      sudo minikube start --wait=all --extra-config='apiserver.event-ttl=24h' --extra-config='apiserver.audit-policy-file=/etc/ssl/certs/audit-policy.yaml' --extra-config='apiserver.audit-log-path=/var/log/kube-apiserver-audit.log' || true
+
+      mkdir -p ~/.kube/
+      sudo cat /root/.kube/config > ~/.kube/config
+      sudo minikube version
+      kubectl version
+
+      # We can't hack an existing dir for logs because they are read only.
+      sudo $( which yq ) -i e '.spec.volumes += {"name": "logs","hostPath": {"path": "/var/log"}} | .spec.containers[0].volumeMounts += {"name": "logs", "mountPath": "/var/log"}' /etc/kubernetes/manifests/kube-apiserver.yaml
+
+      # We need to wait for the apiserver to be restarted.
+      until sudo test -f /var/log/kube-apiserver-audit.log; do
+        echo 'Waiting for /var/log/kube-apiserver-audit.log to be created.'
+        sleep 1;
+      done
+
+      until kubectl get namespace kube-system 2>/dev/null 1>&2; do
+        echo 'Waiting for apiserver to come up.'
+        sleep 1
+      done
+
+      kubectl -n kube-system rollout status --timeout=5m deployment.apps/coredns
