@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: xfs-disk-setup
+  namespace: xfs-disk-setup
+  labels:
+    app: xfs-disk-setup
+spec:
+  selector:
+    matchLabels:
+      app: xfs-disk-setup
+  template:
+    metadata:
+      labels:
+        app: xfs-disk-setup
+    spec:
+      containers:
+      - name: xfs-disk-setup
+        image: docker.io/scyllazimnx/k8s-local-volume-provisioner:latest
+        imagePullPolicy: IfNotPresent
+        command:
+        - "/bin/bash"
+        - "-euExo"
+        - "pipefail"
+        - "-O"
+        - "inherit_errexit"
+        - "-c"
+        - |
+          img_path="/host/var/persistent-volumes/persistent-volume.img"
+          img_dir=$( dirname "${img_path}" )
+          mount_path="/host/mnt/persistent-volumes"
+          
+          mkdir -p "${img_dir}"
+          if [[ ! -f "${img_path}" ]]; then
+            dd if=/dev/zero of="${img_path}" bs=1024 count=0 seek=10485760
+          fi
+          
+          FS=$(blkid -o value -s TYPE "${img_path}" || true)
+          if [[ "${FS}" != "xfs" ]]; then
+            mkfs --type=xfs "${img_path}"
+          fi
+          
+          mkdir -p "${mount_path}"
+          mount -t xfs -o prjquota "${img_path}" "${mount_path}"
+          
+          sleep infinity
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: hostfs
+          mountPath: /host
+          mountPropagation: Bidirectional
+      volumes:
+      - name: hostfs
+        hostPath:
+          path: /
