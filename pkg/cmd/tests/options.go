@@ -11,6 +11,7 @@ import (
 	kubeframework "k8s.io/kubernetes/test/e2e/framework"
 	kubeframeworkconfig "k8s.io/kubernetes/test/e2e/framework/config"
 	"k8s.io/kubernetes/test/e2e/framework/testfiles"
+	testingmanifests "k8s.io/kubernetes/test/e2e/testing-manifests"
 )
 
 type KubeFrameworkOptions struct {
@@ -45,10 +46,10 @@ func (o *KubeFrameworkOptions) Validate() error {
 }
 
 func (o *KubeFrameworkOptions) Complete() error {
-	// Trim spaces so we can reason later if the dir is set or not
 	kubeframework.TestContext.ReportDir = strings.TrimSpace(kubeframework.TestContext.ReportDir)
 
-	testfiles.AddFileSource(testfiles.RootFileSource{Root: "vendor/k8s.io/kubernetes"})
+	// Kube tests use manifests files from repository, we need to register file source to them.
+	testfiles.AddFileSource(testingmanifests.GetE2ETestingManifestsFS())
 
 	o.ReportDir = kubeframework.TestContext.ReportDir
 	return nil
