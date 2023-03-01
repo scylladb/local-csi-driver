@@ -56,7 +56,7 @@ spec:
           periodSeconds: 2
           failureThreshold: 5
       - name: csi-driver-registrar
-        image: k8s.gcr.io/sig-storage/csi-node-driver-registrar@sha256:fdff3ee285341bc58033b6b2458a5d45fd90ec6922a8ba6ebdd49b0c41e2cd34
+        image: registry.k8s.io/sig-storage/csi-node-driver-registrar@sha256:fdff3ee285341bc58033b6b2458a5d45fd90ec6922a8ba6ebdd49b0c41e2cd34
         imagePullPolicy: IfNotPresent
         args:
         - --csi-address=/csi/csi.sock
@@ -67,7 +67,7 @@ spec:
         - name: registration-dir
           mountPath: /registration
       - name: liveness-probe
-        image: k8s.gcr.io/sig-storage/livenessprobe@sha256:cacee2b5c36dd59d4c7e8469c05c9e4ef53ecb2df9025fa8c10cdaf61bce62f0
+        image: registry.k8s.io/sig-storage/livenessprobe@sha256:cacee2b5c36dd59d4c7e8469c05c9e4ef53ecb2df9025fa8c10cdaf61bce62f0
         imagePullPolicy: IfNotPresent
         args:
         - --csi-address=/csi/csi.sock
@@ -77,7 +77,7 @@ spec:
         - name: plugin-dir
           mountPath: /csi
       - name: csi-provisioner
-        image: k8s.gcr.io/sig-storage/csi-provisioner@sha256:ee3b525d5b89db99da3b8eb521d9cd90cb6e9ef0fbb651e98bb37be78d36b5b8
+        image: registry.k8s.io/sig-storage/csi-provisioner@sha256:ee3b525d5b89db99da3b8eb521d9cd90cb6e9ef0fbb651e98bb37be78d36b5b8
         imagePullPolicy: IfNotPresent
         args:
         - --csi-address=/csi/csi.sock
