@@ -131,18 +131,7 @@ func (xl *xfsLimiter) SetLimit(projectID uint32, capacityBytes int64) error {
 
 	klog.V(4).InfoS("Setting project", "projectID", projectID, "capacity", capacityBytes)
 
-	fd, err := os.Open(xl.volumesDir)
-	if err != nil {
-		return fmt.Errorf("can't open path %q: %w", xl.volumesDir, err)
-	}
-	defer func() {
-		closeErr := fd.Close()
-		if closeErr != nil {
-			klog.ErrorS(err, "Failed to close filesystem directory", "directory", xl.volumesDir)
-		}
-	}()
-
-	err = quotactl.SetQuota(fd, quotactl.QuotaTypeProject, &quotactl.DiskQuota{
+	err := quotactl.SetQuota(xl.volumesDir, quotactl.QuotaTypeProject, &quotactl.DiskQuota{
 		Version:      quotactl.FS_DQUOT_VERSION,
 		ID:           projectID,
 		Flags:        int8(quotactl.QuotaTypeProject),
@@ -181,21 +170,10 @@ func getMountEntry(mountPoint string) (mount.MountPoint, error) {
 }
 
 func findFreeProjectID(volumesDir string) (uint32, error) {
-	fd, err := os.Open(volumesDir)
-	if err != nil {
-		return 0, fmt.Errorf("can't open path %q for reading: %w", volumesDir, err)
-	}
-	defer func() {
-		closeErr := fd.Close()
-		if closeErr != nil {
-			klog.ErrorS(err, "Failed to close directory", "directory", volumesDir)
-		}
-	}()
-
 	const maxRetries = 1000
 	for retries := 0; retries < maxRetries; retries++ {
 		id := rand.Uint32()
-		_, err := quotactl.GetQuota(fd, quotactl.QuotaTypeProject, id)
+		_, err := quotactl.GetQuota(volumesDir, quotactl.QuotaTypeProject, id)
 		if err != nil {
 			if errors.Is(err, quotactl.IDNotFoundErr) {
 				return id, nil

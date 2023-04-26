@@ -4,11 +4,12 @@ package quotactl
 
 import (
 	"errors"
-	"os"
+	"fmt"
 	"syscall"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
+	"k8s.io/mount-utils"
 )
 
 type QuotaType uint
@@ -89,7 +90,12 @@ var (
 )
 
 // GetQuota returns quota information for the provided ID and quota type.
-func GetQuota(fd *os.File, quotaType QuotaType, id uint32) (*DiskQuota, error) {
+func GetQuota(fsPath string, quotaType QuotaType, id uint32) (*DiskQuota, error) {
+	device, err := getMountDevice(fsPath)
+	if err != nil {
+		return nil, fmt.Errorf("can't get block device backing file %q: %w", fsPath, err)
+	}
+
 	quota := DiskQuota{
 		Version: FS_DQUOT_VERSION,
 	}
@@ -97,25 +103,50 @@ func GetQuota(fd *os.File, quotaType QuotaType, id uint32) (*DiskQuota, error) {
 	// https://github.com/torvalds/linux/blob/master/include/uapi/linux/dqblk_xfs.h
 	cmd := Q_XGETQUOTA | (quotaType & 0x00ff)
 
-	_, _, err := unix.Syscall6(unix.SYS_QUOTACTL_FD, fd.Fd(), uintptr(cmd), uintptr(id), uintptr(unsafe.Pointer(&quota)), 0, 0)
-	if err != 0 {
-		return nil, transformErrno(err)
+	_, _, errno := unix.Syscall6(unix.SYS_QUOTACTL, uintptr(cmd), uintptr(unsafe.Pointer(device)), uintptr(id), uintptr(unsafe.Pointer(&quota)), 0, 0)
+	if errno != 0 {
+		return nil, transformErrno(errno)
 	}
 
 	return &quota, nil
 }
 
 // SetQuota sets disk quota limits.
-func SetQuota(fd *os.File, quotaType QuotaType, dq *DiskQuota) error {
+func SetQuota(fsPath string, quotaType QuotaType, dq *DiskQuota) error {
+	device, err := getMountDevice(fsPath)
+	if err != nil {
+		return fmt.Errorf("can't get device of mount point %q: %w", fsPath, err)
+	}
+
 	// https://github.com/torvalds/linux/blob/master/include/uapi/linux/dqblk_xfs.h
 	cmd := Q_XSETQLIM | (quotaType & 0x00ff)
 
-	_, _, err := unix.Syscall6(unix.SYS_QUOTACTL_FD, fd.Fd(), uintptr(cmd), uintptr(dq.ID), uintptr(unsafe.Pointer(dq)), 0, 0)
-	if err != 0 {
-		return transformErrno(err)
+	_, _, errno := unix.Syscall6(unix.SYS_QUOTACTL, uintptr(cmd), uintptr(unsafe.Pointer(device)), uintptr(dq.ID), uintptr(unsafe.Pointer(dq)), 0, 0)
+	if errno != 0 {
+		return transformErrno(errno)
 	}
 
 	return nil
+}
+
+func getMountDevice(mountPoint string) (*byte, error) {
+	entries, err := mount.New("").List()
+	if err != nil {
+		return nil, fmt.Errorf("can't list mount points at %q: %w", mountPoint, err)
+	}
+
+	for _, e := range entries {
+		if e.Path == mountPoint {
+			deviceArg, err := unix.BytePtrFromString(e.Device)
+			if err != nil {
+				return nil, fmt.Errorf("can't create byte ptr from string %q: %w", e.Device, err)
+			}
+
+			return deviceArg, nil
+		}
+	}
+
+	return nil, fmt.Errorf("cannot find device of mount point %q", mountPoint)
 }
 
 func transformErrno(err syscall.Errno) error {
