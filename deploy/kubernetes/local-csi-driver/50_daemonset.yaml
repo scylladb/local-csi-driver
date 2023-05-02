@@ -86,6 +86,7 @@ spec:
         - --feature-gates=Topology=true
         - --immediate-topology=false
         - --enable-capacity
+        - --capacity-ownerref-level=0
         - --capacity-poll-interval=30s
         - --default-fstype=xfs
         env:
