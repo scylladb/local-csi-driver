@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: xfs-disk-setup
-        image: docker.io/scylladb/k8s-local-volume-provisioner:latest
+        image: docker.io/scylladb/k8s-local-volume-provisioner:0.1
         imagePullPolicy: IfNotPresent
         command:
         - "/bin/bash"
