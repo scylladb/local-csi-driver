@@ -19,7 +19,6 @@ on:
 
 env:
   go_version: '1.20'
-  scylla_operator_version: 'v1.9.0-alpha.4'
 
 defaults:
   run:
@@ -44,11 +43,11 @@ jobs:
         echo "current_tag=${current_tag}" | tee -a ${GITHUB_ENV}
     
     - name: Generate and publish release notes
-      uses: scylladb/scylla-operator/.github/actions/release-notes@${{ env.scylla_operator_version }}
+      uses: scylladb/scylla-operator/.github/actions/release-notes@v1.9.0-alpha.4
       with:
         githubRepository: ${{ github.repository }}
         githubRef: ${{ env.current_tag }}
         githubToken: ${{ secrets.GITHUB_TOKEN }}
         goVersion: ${{ env.go_version }}
-        genReleaseNotesVersionRef: ${{ env.scylla_operator_version }}
+        genReleaseNotesVersionRef: v1.9.0-alpha.4
         containerImageName: docker.io/scylladb/k8s-local-volume-provisioner
