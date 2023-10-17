@@ -3,6 +3,8 @@
 package localdriver
 
 import (
+	"context"
+
 	g "github.com/onsi/ginkgo/v2"
 	"github.com/scylladb/k8s-local-volume-provisioner/pkg/driver"
 	corev1 "k8s.io/api/core/v1"
@@ -14,7 +16,6 @@ import (
 	kubeframework "k8s.io/kubernetes/test/e2e/framework"
 	storageframework "k8s.io/kubernetes/test/e2e/storage/framework"
 	"k8s.io/kubernetes/test/e2e/storage/testsuites"
-	"k8s.io/kubernetes/test/e2e/storage/utils"
 )
 
 type localCsiDriver struct {
@@ -37,24 +38,20 @@ func (d *localCsiDriver) GetDriverInfo() *storageframework.DriverInfo {
 
 func (d *localCsiDriver) SkipUnsupportedTest(pattern storageframework.TestPattern) {}
 
-func (d *localCsiDriver) PrepareTest(f *kubeframework.Framework) (*storageframework.PerTestConfig, func()) {
-	cancelPodLogs := utils.StartPodLogs(f, f.Namespace)
-
+func (d *localCsiDriver) PrepareTest(ctx context.Context, f *kubeframework.Framework) *storageframework.PerTestConfig {
 	return &storageframework.PerTestConfig{
-			Driver:    d,
-			Prefix:    "local-csi",
-			Framework: f,
-			DriverNamespace: &corev1.Namespace{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "local-csi-driver",
-				},
+		Driver:    d,
+		Prefix:    "local-csi",
+		Framework: f,
+		DriverNamespace: &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "local-csi-driver",
 			},
-		}, func() {
-			cancelPodLogs()
-		}
+		},
+	}
 }
 
-func (d *localCsiDriver) GetDynamicProvisionStorageClass(config *storageframework.PerTestConfig, fsType string) *v1.StorageClass {
+func (d *localCsiDriver) GetDynamicProvisionStorageClass(ctx context.Context, config *storageframework.PerTestConfig, fsType string) *v1.StorageClass {
 	defaultBindingMode := storagev1.VolumeBindingWaitForFirstConsumer
 	return &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
