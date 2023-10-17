@@ -32,6 +32,9 @@ var (
 		"com.ericsson.bss.cassandra.ecaudit.auth.AuditPasswordAuthenticator",
 		"com.amazon.helenus.auth.HelenusAuthenticator",
 		"com.ericsson.bss.cassandra.ecaudit.auth.AuditAuthenticator",
+		"com.scylladb.auth.SaslauthdAuthenticator",
+		"com.scylladb.auth.TransitionalAuthenticator",
+		"com.instaclustr.cassandra.auth.InstaclustrPasswordAuthenticator",
 	}
 )
 
@@ -422,7 +425,9 @@ func (s *startupCoordinator) options(ctx context.Context) error {
 
 func (s *startupCoordinator) startup(ctx context.Context, supported map[string][]string) error {
 	m := map[string]string{
-		"CQL_VERSION": s.conn.cfg.CQLVersion,
+		"CQL_VERSION":    s.conn.cfg.CQLVersion,
+		"DRIVER_NAME":    driverName,
+		"DRIVER_VERSION": driverVersion,
 	}
 
 	if s.conn.compressor != nil {
@@ -1373,6 +1378,12 @@ func (c *Conn) executeQuery(ctx context.Context, qry *Query) *Iter {
 			params:        params,
 			customPayload: qry.customPayload,
 		}
+
+		// Set "keyspace" and "table" property in the query if it is present in preparedMetadata
+		qry.routingInfo.mu.Lock()
+		qry.routingInfo.keyspace = info.request.keyspace
+		qry.routingInfo.table = info.request.table
+		qry.routingInfo.mu.Unlock()
 	} else {
 		frame = &writeQueryFrame{
 			statement:     qry.stmt,
