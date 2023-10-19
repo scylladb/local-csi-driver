@@ -159,6 +159,10 @@ func (o *LocalDriverOptions) run(ctx context.Context, _ genericclioptions.IOStre
 		return fmt.Errorf("can't create driver: %w", err)
 	}
 
+	if err := os.Remove(o.Listen); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("can't remove file at %q: %w", o.Listen, err)
+	}
+
 	lc := net.ListenConfig{}
 	listener, err := lc.Listen(ctx, "unix", o.Listen)
 	if err != nil {
