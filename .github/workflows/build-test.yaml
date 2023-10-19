@@ -26,7 +26,7 @@ on:
     - synchronize
 
 env:
-  go_version: 1.19
+  go_version: 1.21
   GOPATH: ${{ github.workspace }}/go
   git_repo_path: ${{ github.workspace }}/go/src/github.com/scylladb/k8s-local-volume-provisioner
   image_repo_ref: docker.io/scylladb/k8s-local-volume-provisioner

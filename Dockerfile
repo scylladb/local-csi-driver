@@ -1,4 +1,4 @@
-FROM quay.io/scylladb/scylla-operator-images:golang-1.19 AS builder
+FROM quay.io/scylladb/scylla-operator-images:golang-1.21 AS builder
 SHELL ["/bin/bash", "-euEo", "pipefail", "-O", "inherit_errexit", "-c"]
 WORKDIR /go/src/github.com/scylladb/k8s-local-volume-provisioner
 COPY . .
