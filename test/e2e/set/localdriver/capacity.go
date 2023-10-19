@@ -38,8 +38,7 @@ var _ = g.Describe("Node Capacity", func() {
 		ctx, ctxCancel := context.WithCancel(context.Background())
 		defer ctxCancel()
 
-		frameworkTestConfig, driverCleanup := d.PrepareTest(f)
-		defer driverCleanup()
+		frameworkTestConfig := d.PrepareTest(ctx, f)
 
 		testVolumeSizeRange := e2evolume.SizeRange{Min: fmt.Sprintf("%d", quota)}
 		testPattern := storageframework.TestPattern{
@@ -48,11 +47,13 @@ var _ = g.Describe("Node Capacity", func() {
 			FsType:  "",
 		}
 
-		volResource := storageframework.CreateVolumeResource(d, frameworkTestConfig, testPattern, testVolumeSizeRange)
+		volResource := storageframework.CreateVolumeResource(ctx, d, frameworkTestConfig, testPattern, testVolumeSizeRange)
 		o.Expect(volResource.VolSource).NotTo(o.BeNil())
 
 		defer func() {
-			err := volResource.CleanupResource()
+			cleanupCtx, cleanupCtxCancel := context.WithCancel(context.Background())
+			defer cleanupCtxCancel()
+			err := volResource.CleanupResource(cleanupCtx)
 			o.Expect(err).NotTo(o.HaveOccurred())
 		}()
 
@@ -103,12 +104,14 @@ var _ = g.Describe("Node Capacity", func() {
 		o.Expect(err).NotTo(o.HaveOccurred())
 
 		defer func() {
+			cleanupCtx, cleanupCtxCancel := context.WithCancel(context.Background())
+			defer cleanupCtxCancel()
 			g.By("deleting test pod")
-			err = e2epod.DeletePodWithWait(f.ClientSet, testPod)
+			err = e2epod.DeletePodWithWait(cleanupCtx, f.ClientSet, testPod)
 			o.Expect(err).NotTo(o.HaveOccurred())
 		}()
 
-		err = e2epod.WaitTimeoutForPodRunningInNamespace(f.ClientSet, testPod.Name, testPod.Namespace, f.Timeouts.PodStart)
+		err = e2epod.WaitTimeoutForPodRunningInNamespace(ctx, f.ClientSet, testPod.Name, testPod.Namespace, f.Timeouts.PodStart)
 		o.Expect(err).NotTo(o.HaveOccurred())
 
 		testPod, err = f.ClientSet.CoreV1().Pods(testConfig.Namespace).Get(ctx, testPod.Name, metav1.GetOptions{})
@@ -158,11 +161,11 @@ var _ = g.Describe("Node Capacity", func() {
 		g.By("Checking if capacity is aligned when volume is removed")
 
 		g.By("deleting test pod")
-		err = e2epod.DeletePodWithWait(f.ClientSet, testPod)
+		err = e2epod.DeletePodWithWait(ctx, f.ClientSet, testPod)
 		o.Expect(err).NotTo(o.HaveOccurred())
 
 		g.By("deleting test pod pvc")
-		err = volResource.CleanupResource()
+		err = volResource.CleanupResource(ctx)
 		o.Expect(err).NotTo(o.HaveOccurred())
 
 		// Node storage capacity should go back to initial cap

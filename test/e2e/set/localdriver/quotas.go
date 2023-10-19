@@ -36,8 +36,7 @@ var _ = g.Describe("XFS Quotas", func() {
 		ctx, ctxCancel := context.WithCancel(context.Background())
 		defer ctxCancel()
 
-		frameworkTestConfig, driverCleanup := d.PrepareTest(f)
-		defer driverCleanup()
+		frameworkTestConfig := d.PrepareTest(ctx, f)
 
 		testPattern := storageframework.TestPattern{
 			Name:    "quotas",
@@ -45,10 +44,12 @@ var _ = g.Describe("XFS Quotas", func() {
 			FsType:  "xfs",
 		}
 		testVolumeSizeRange := e2evolume.SizeRange{Min: fmt.Sprintf("%d", quota)}
-		resource := storageframework.CreateVolumeResource(d, frameworkTestConfig, testPattern, testVolumeSizeRange)
+		resource := storageframework.CreateVolumeResource(ctx, d, frameworkTestConfig, testPattern, testVolumeSizeRange)
 		o.Expect(resource.VolSource).NotTo(o.BeNil())
 		defer func() {
-			err := resource.CleanupResource()
+			cleanupCtx, cleanupCtxCancel := context.WithCancel(context.Background())
+			defer cleanupCtxCancel()
+			err := resource.CleanupResource(cleanupCtx)
 			o.Expect(err).NotTo(o.HaveOccurred())
 		}()
 
@@ -63,12 +64,13 @@ var _ = g.Describe("XFS Quotas", func() {
 		o.Expect(err).NotTo(o.HaveOccurred())
 		defer func() {
 			g.By("deleting test pod")
-
-			err = e2epod.DeletePodWithWait(f.ClientSet, clientPod)
+			cleanupCtx, cleanupCtxCancel := context.WithCancel(context.Background())
+			defer cleanupCtxCancel()
+			err = e2epod.DeletePodWithWait(cleanupCtx, f.ClientSet, clientPod)
 			o.Expect(err).NotTo(o.HaveOccurred())
 		}()
 
-		err = e2epod.WaitTimeoutForPodRunningInNamespace(f.ClientSet, clientPod.Name, clientPod.Namespace, f.Timeouts.PodStart)
+		err = e2epod.WaitTimeoutForPodRunningInNamespace(ctx, f.ClientSet, clientPod.Name, clientPod.Namespace, f.Timeouts.PodStart)
 		o.Expect(err).NotTo(o.HaveOccurred())
 
 		testFile := filepath.Join(mountPath, fmt.Sprintf("io-%d", storageframework.MinFileSize))
