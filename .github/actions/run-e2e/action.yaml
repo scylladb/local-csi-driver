@@ -103,7 +103,7 @@ runs:
       --workdir="${{ inputs.repositoryPath }}" \
       --volume="${{ inputs.repositoryPath }}:${{ inputs.repositoryPath }}:rw" \
       --volume="${ARTIFACTS_DIR}:${ARTIFACTS_DIR}:rw" \
-      --volume="/usr/local/bin/kubectl:/usr/bin/kubectl" \
+      --volume="$( realpath $( command -v kubectl ) ):/usr/bin/kubectl" \
       --volume="${HOME}/.kube/config:/kubeconfig:ro" -e='KUBECONFIG=/kubeconfig' \
       '${{ env.image_repo_ref }}:ci' \
       run '${{ inputs.suite }}' \
