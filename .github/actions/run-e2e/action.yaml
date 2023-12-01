@@ -37,7 +37,7 @@ runs:
       mkdir "${ARTIFACTS_DIR}"
       echo "ARTIFACTS_DIR=${ARTIFACTS_DIR}" | tee -a ${GITHUB_ENV}
   - name: Setup Kubernetes
-    uses: scylladb/scylla-operator/.github/actions/setup-kubernetes@master
+    uses: scylladb/scylla-operator/.github/actions/setup-kubernetes@v1.12.0-alpha.1
     with:
       kubernetesVersion: 1.25.6
   - name: Install podman
