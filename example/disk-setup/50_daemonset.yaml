@@ -14,6 +14,8 @@ spec:
       labels:
         app: xfs-disk-setup
     spec:
+      tolerations:
+      - operator: Exists
       containers:
       - name: xfs-disk-setup
         image: docker.io/scylladb/k8s-local-volume-provisioner:latest
