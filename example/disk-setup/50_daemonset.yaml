@@ -43,7 +43,12 @@ spec:
           fi
           
           mkdir -p "${mount_path}"
-          mount -t xfs -o prjquota "${img_path}" "${mount_path}"
+          
+          remount_opt=""
+          if mountpoint "${mount_path}"; then
+            remount_opt="remount,"
+          fi
+          mount -t xfs -o "${remount_opt}prjquota" "${img_path}" "${mount_path}"
           
           sleep infinity
         securityContext:
