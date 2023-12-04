@@ -7,4 +7,5 @@ package dependencymagnet
 
 import (
 	_ "github.com/onsi/ginkgo/v2/ginkgo"
+	_ "k8s.io/kubernetes/cmd/kubectl"
 )
