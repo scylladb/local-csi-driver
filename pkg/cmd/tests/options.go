@@ -5,13 +5,10 @@ package tests
 import (
 	"flag"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
 	apierrors "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/client-go/tools/clientcmd"
 	kubeframework "k8s.io/kubernetes/test/e2e/framework"
 	kubeframeworkconfig "k8s.io/kubernetes/test/e2e/framework/config"
 	"k8s.io/kubernetes/test/e2e/framework/testfiles"
@@ -50,12 +47,6 @@ func (o *KubeFrameworkOptions) AddFlags(cmd *cobra.Command) {
 	)))
 
 	cmd.PersistentFlags().StringVarP(&kubeframework.TestContext.KubeConfig, "kubeconfig", "", kubeframework.TestContext.KubeConfig, "Path to the kubeconfig file.")
-
-	// k8s.io/kubernetes/test/e2e/framework requires env KUBECONFIG to be set
-	// it does not fall back to defaults
-	if os.Getenv(clientcmd.RecommendedConfigPathEnvVar) == "" {
-		os.Setenv(clientcmd.RecommendedConfigPathEnvVar, filepath.Join(os.Getenv("HOME"), ".kube", "config"))
-	}
 
 	kubeframeworkconfig.CopyFlags(kubeframeworkconfig.Flags, flag.CommandLine)
 	kubeframework.RegisterCommonFlags(kubeframeworkconfig.Flags)
