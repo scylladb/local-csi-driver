@@ -4,9 +4,6 @@ SHELL :=/bin/bash -euEo pipefail -O inherit_errexit
 
 comma :=,
 
-IMAGE_TAG ?= latest
-IMAGE_REF ?= docker.io/scylladb/k8s-local-volume-provisioner:$(IMAGE_TAG)
-
 MAKE_REQUIRED_MIN_VERSION:=4.2 # for SHELLSTATUS
 GO_REQUIRED_MIN_VERSION ?=1.19
 
@@ -188,6 +185,7 @@ help:
 	awk '/^[^.%][-A-Za-z0-9_]*:/	{ print substr($$1, 1, length($$1)-1) }' | sort -u
 .PHONY: help
 
-image:
-	docker build . -t $(IMAGE_REF)
-.PHONY: image
+images:
+	podman build --squash --format=docker -f=./images/k8s-local-volume-provisioner/Dockerfile -t=docker.io/scylladb/docker.io/scylladb/k8s-local-volume-provisioner .
+	podman build --squash --format=docker -f=./images/k8s-local-volume-provisioner-tests/Dockerfile -t=docker.io/scylladb/docker.io/scylladb/k8s-local-volume-provisioner-tests .
+.PHONY: images

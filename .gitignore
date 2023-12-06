@@ -1,3 +1,4 @@
 .idea
 /local-csi-driver
 /local-csi-driver-tests
+/kubectl
