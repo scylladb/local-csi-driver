@@ -8,6 +8,7 @@ FROM quay.io/scylladb/scylla-operator-images:base-ubuntu-22.04
 SHELL ["/bin/bash", "-euEo", "pipefail", "-O", "inherit_errexit", "-c"]
 
 RUN apt-get update && \
+    apt-get upgrade && \
     apt-get install -y --no-install-recommends xfsprogs && \
     apt-get clean  && \
     rm -rf /var/lib/apt/lists/*
