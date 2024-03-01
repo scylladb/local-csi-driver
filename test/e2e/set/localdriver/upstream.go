@@ -71,8 +71,9 @@ var _ = g.Describe("CSI upstream", func() {
 	defer g.GinkgoRecover()
 
 	driver := &localCsiDriver{}
+	driverInfo := driver.GetDriverInfo()
 
-	g.Context(storageframework.GetDriverNameWithFeatureTags(driver), func() {
+	g.Context(driverInfo.Name, driverInfo.TestTags, func() {
 		storageframework.DefineTestSuites(driver, []func() storageframework.TestSuite{
 			testsuites.InitVolumesTestSuite,
 			testsuites.InitVolumeIOTestSuite,
