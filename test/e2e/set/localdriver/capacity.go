@@ -34,7 +34,7 @@ var _ = g.Describe("Node Capacity", func() {
 	f := kubeframework.NewFrameworkWithCustomTimeouts("capacity", storageframework.GetDriverTimeouts(d))
 	f.NamespacePodSecurityEnforceLevel = admissionapi.LevelPrivileged
 
-	g.It("should calculate node capacity [Serial]", func() {
+	g.It("should calculate node capacity", g.Serial, func() {
 		ctx, ctxCancel := context.WithCancel(context.Background())
 		defer ctxCancel()
 
