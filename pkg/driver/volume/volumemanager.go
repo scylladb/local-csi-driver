@@ -15,6 +15,15 @@ import (
 	"k8s.io/mount-utils"
 )
 
+type VolumeStatistics struct {
+	AvailableBytes  int64
+	TotalBytes      int64
+	UsedBytes       int64
+	AvailableInodes int64
+	TotalInodes     int64
+	UsedInodes      int64
+}
+
 type VolumeManager struct {
 	volumesDir string
 	mounter    mount.Interface
@@ -180,6 +189,24 @@ func (v *VolumeManager) GetAvailableCapacity() (int64, error) {
 	capacity := stat.Bsize*int64(stat.Blocks) - v.state.GetTotalVolumesSize() - int64(metadataSize)
 
 	return capacity, nil
+}
+
+func (v *VolumeManager) GetVolumeStatistics(volumePath string) (*VolumeStatistics, error) {
+	statfs := &unix.Statfs_t{}
+	err := unix.Statfs(volumePath, statfs)
+	if err != nil {
+		err = fmt.Errorf("can't get statfs on path %q: %w", volumePath, err)
+		return nil, err
+	}
+
+	return &VolumeStatistics{
+		AvailableBytes:  int64(statfs.Bavail) * statfs.Bsize,
+		TotalBytes:      int64(statfs.Blocks) * statfs.Bsize,
+		UsedBytes:       (int64(statfs.Blocks) - int64(statfs.Bfree)) * statfs.Bsize,
+		AvailableInodes: int64(statfs.Ffree),
+		TotalInodes:     int64(statfs.Files),
+		UsedInodes:      int64(statfs.Files) - int64(statfs.Ffree),
+	}, nil
 }
 
 func (v *VolumeManager) Mount(volumeID, targetPath, fsType string, mountOptions []string) error {

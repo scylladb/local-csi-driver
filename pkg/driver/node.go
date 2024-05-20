@@ -5,6 +5,7 @@ package driver
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
@@ -17,7 +18,15 @@ import (
 
 func (d *driver) NodeGetCapabilities(ctx context.Context, request *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
 	return &csi.NodeGetCapabilitiesResponse{
-		Capabilities: nil,
+		Capabilities: []*csi.NodeServiceCapability{
+			{
+				Type: &csi.NodeServiceCapability_Rpc{
+					Rpc: &csi.NodeServiceCapability_RPC{
+						Type: csi.NodeServiceCapability_RPC_GET_VOLUME_STATS,
+					},
+				},
+			},
+		},
 	}, nil
 }
 
@@ -88,4 +97,49 @@ func (d *driver) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (
 		MaxVolumesPerNode:  int64(limit.MaxLimits),
 		AccessibleTopology: d.getNodeAccessibleTopology(),
 	}, nil
+}
+
+func (d *driver) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
+	klog.V(4).InfoS("New request", "server", "node", "function", "NodeGetVolumeStats", "request", protosanitizer.StripSecrets(req))
+
+	volumeID := req.GetVolumeId()
+	if len(volumeID) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "VolumeID not provided")
+	}
+
+	volumePath := req.GetVolumePath()
+	if len(volumePath) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "VolumePath not provided")
+	}
+
+	_, err := os.Lstat(volumePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, status.Errorf(codes.NotFound, "volume path %q does not exist", volumePath)
+		}
+		return nil, status.Errorf(codes.Internal, "Failed to stat volume %q: %v", volumePath, err)
+	}
+
+	volumeStats, err := d.volumeManager.GetVolumeStatistics(volumePath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get volume %q statistics: %v", volumeID, err)
+	}
+
+	return &csi.NodeGetVolumeStatsResponse{
+		Usage: []*csi.VolumeUsage{
+			{
+				Available: volumeStats.AvailableBytes,
+				Total:     volumeStats.TotalBytes,
+				Used:      volumeStats.UsedBytes,
+				Unit:      csi.VolumeUsage_BYTES,
+			},
+			{
+				Available: volumeStats.AvailableInodes,
+				Total:     volumeStats.TotalInodes,
+				Used:      volumeStats.UsedInodes,
+				Unit:      csi.VolumeUsage_INODES,
+			},
+		},
+	}, nil
+
 }
