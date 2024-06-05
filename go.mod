@@ -1,6 +1,6 @@
 module github.com/scylladb/k8s-local-volume-provisioner
 
-go 1.22.3
+go 1.22.4
 
 require (
 	github.com/container-storage-interface/spec v1.9.0
