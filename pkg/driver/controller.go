@@ -153,6 +153,8 @@ func (d *driver) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (
 }
 
 func (d *driver) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
+	klog.V(4).InfoS("New request", "server", "controller", "function", "ValidateVolumeCapabilities", "request", protosanitizer.StripSecrets(req))
+
 	volumeID := req.GetVolumeId()
 	if len(volumeID) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "VolumeID is missing in request")
