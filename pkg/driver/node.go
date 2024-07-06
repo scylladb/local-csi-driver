@@ -74,7 +74,7 @@ func (d *driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 }
 
 func (d *driver) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	klog.V(4).InfoS("New request", "server", "node", "function", "NodePublishVolume", "request", protosanitizer.StripSecrets(req))
+	klog.V(4).InfoS("New request", "server", "node", "function", "NodeUnpublishVolume", "request", protosanitizer.StripSecrets(req))
 
 	targetPath := req.GetTargetPath()
 	if len(targetPath) == 0 {
