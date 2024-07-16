@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/driver/limit"
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/util/slices"
+	"github.com/scylladb/local-csi-driver/pkg/driver/limit"
+	"github.com/scylladb/local-csi-driver/pkg/util/slices"
 	"golang.org/x/sys/unix"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/klog/v2"

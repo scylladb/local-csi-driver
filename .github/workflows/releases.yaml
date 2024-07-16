@@ -50,4 +50,4 @@ jobs:
         githubToken: ${{ secrets.GITHUB_TOKEN }}
         goVersion: ${{ env.go_version }}
         genReleaseNotesVersionRef: v1.9.0-alpha.4
-        containerImageName: docker.io/scylladb/k8s-local-volume-provisioner
+        containerImageName: docker.io/scylladb/local-csi-driver

@@ -1,4 +1,4 @@
-module github.com/scylladb/k8s-local-volume-provisioner
+module github.com/scylladb/local-csi-driver
 
 go 1.22.4
 

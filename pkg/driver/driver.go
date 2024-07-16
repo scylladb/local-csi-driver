@@ -7,8 +7,8 @@ import (
 	"sync"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/driver/volume"
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/util/slices"
+	"github.com/scylladb/local-csi-driver/pkg/driver/volume"
+	"github.com/scylladb/local-csi-driver/pkg/util/slices"
 	"k8s.io/apimachinery/pkg/util/errors"
 )
 

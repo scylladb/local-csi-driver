@@ -1,8 +1,8 @@
-[![GitHub release](https://img.shields.io/github/tag/scylladb/k8s-local-volume-provisioner.svg?label=release)](https://github.com/scylladb/k8s-local-volume-provisioner/releases)
-[![Go](https://github.com/scylladb/k8s-local-volume-provisioner/actions/workflows/build-test.yaml/badge.svg?branch=master)](https://github.com/scylladb/k8s-local-volume-provisioner/actions/workflows/build-test.yaml?query=branch%3Amaster)
-[![Go Report Card](https://goreportcard.com/badge/github.com/scylladb/k8s-local-volume-provisioner)](https://goreportcard.com/report/github.com/scylladb/k8s-local-volume-provisioner)
+[![GitHub release](https://img.shields.io/github/tag/scylladb/local-csi-driver.svg?label=release)](https://github.com/scylladb/local-csi-driver
+[![Go](https://github.com/scylladb/local-csi-driver/actions/workflows/build-test.yaml/badge.svg?branch=master)](https://github.com/scylladb/local-csi-driver/actions/workflows/build-test.yaml?query=branch%3Amaster)
+[![Go Report Card](https://goreportcard.com/badge/github.com/scylladb/local-csi-driver)](https://goreportcard.com/report/github.com/scylladb/local-csi-driver
 [![Language](https://img.shields.io/badge/Language-Go-blue.svg)](https://golang.org/)
-[![LICENSE](https://img.shields.io/github/license/scylladb/k8s-local-volume-provisioner.svg)](https://github.com/scylladb/k8s-local-volume-provisioner/blob/master/LICENSE)
+[![LICENSE](https://img.shields.io/github/license/scylladb/local-csi-driver.svg)](https://github.com/scylladb/local-csi-driver/LICENSE)
 
 ## Local Volume Provisioner
 
