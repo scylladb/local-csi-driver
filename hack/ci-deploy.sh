@@ -39,7 +39,7 @@ cp ./example/disk-setup/*.yaml "${deploy_dir}/disk-setup"
 cp ./example/storageclass_xfs.yaml "${deploy_dir}/"
 
 for f in $( find "${deploy_dir}"/ -type f -name '*.yaml' ); do
-    sed -i -E -e "s~docker.io/scylladb/k8s-local-volume-provisioner(:|@sha256:)[^ ]*~${DRIVER_IMAGE_REF}~" "${f}"
+    sed -i -E -e "s~docker.io/scylladb/local-csi-driver(:|@sha256:)[^ ]*~${DRIVER_IMAGE_REF}~" "${f}"
 done
 
 kubectl_create -f "${deploy_dir}"/storageclass_xfs.yaml

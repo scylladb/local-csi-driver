@@ -5,7 +5,7 @@ package slices_test
 import (
 	"testing"
 
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/util/slices"
+	"github.com/scylladb/local-csi-driver/pkg/util/slices"
 )
 
 func TestContains(t *testing.T) {

@@ -3,5 +3,5 @@
 package e2e
 
 import (
-	_ "github.com/scylladb/k8s-local-volume-provisioner/test/e2e/set/localdriver"
+	_ "github.com/scylladb/local-csi-driver/test/e2e/set/localdriver"
 )

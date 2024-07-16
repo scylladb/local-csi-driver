@@ -14,9 +14,9 @@ import (
 	"github.com/kubernetes-csi/csi-test/v5/pkg/sanity"
 	g "github.com/onsi/ginkgo/v2"
 	o "github.com/onsi/gomega"
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/driver"
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/driver/limit"
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/driver/volume"
+	"github.com/scylladb/local-csi-driver/pkg/driver"
+	"github.com/scylladb/local-csi-driver/pkg/driver/limit"
+	"github.com/scylladb/local-csi-driver/pkg/driver/volume"
 	"google.golang.org/grpc"
 	"k8s.io/mount-utils"
 )
