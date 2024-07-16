@@ -6,7 +6,7 @@ import (
 	"context"
 
 	g "github.com/onsi/ginkgo/v2"
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/driver"
+	"github.com/scylladb/local-csi-driver/pkg/driver"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/storage/v1"
 	storagev1 "k8s.io/api/storage/v1"

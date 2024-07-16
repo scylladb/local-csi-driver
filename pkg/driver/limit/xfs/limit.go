@@ -10,12 +10,12 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/driver/limit"
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/driver/limit/xfs/fxattrs"
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/driver/limit/xfs/quotactl"
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/driver/volume"
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/util/fs"
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/util/slices"
+	"github.com/scylladb/local-csi-driver/pkg/driver/limit"
+	"github.com/scylladb/local-csi-driver/pkg/driver/limit/xfs/fxattrs"
+	"github.com/scylladb/local-csi-driver/pkg/driver/limit/xfs/quotactl"
+	"github.com/scylladb/local-csi-driver/pkg/driver/volume"
+	"github.com/scylladb/local-csi-driver/pkg/util/fs"
+	"github.com/scylladb/local-csi-driver/pkg/util/slices"
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
 )

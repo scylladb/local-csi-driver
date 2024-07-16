@@ -8,9 +8,9 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/driver/volume"
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/util/slices"
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/util/uuid"
+	"github.com/scylladb/local-csi-driver/pkg/driver/volume"
+	"github.com/scylladb/local-csi-driver/pkg/util/slices"
+	"github.com/scylladb/local-csi-driver/pkg/util/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/api/equality"

@@ -186,6 +186,6 @@ help:
 .PHONY: help
 
 images:
-	podman build --squash --format=docker -f=./images/k8s-local-volume-provisioner/Dockerfile -t=docker.io/scylladb/docker.io/scylladb/k8s-local-volume-provisioner .
-	podman build --squash --format=docker -f=./images/k8s-local-volume-provisioner-tests/Dockerfile -t=docker.io/scylladb/docker.io/scylladb/k8s-local-volume-provisioner-tests .
+	podman build --squash --format=docker -f=./images/local-csi-driver/Dockerfile -t=docker.io/scylladb/docker.io/scylladb/local-csi-driver .
+	podman build --squash --format=docker -f=./images/local-csi-driver-tests/Dockerfile -t=docker.io/scylladb/docker.io/scylladb/local-csi-driver-tests .
 .PHONY: images
