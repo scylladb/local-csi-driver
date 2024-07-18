@@ -20,19 +20,20 @@ import (
 	"github.com/onsi/gomega"
 	gomegaformat "github.com/onsi/gomega/format"
 	"github.com/pkg/errors"
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/cmdutil"
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/genericclioptions"
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/signals"
-	ginkgotest "github.com/scylladb/k8s-local-volume-provisioner/pkg/test/ginkgo"
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/thirdparty/github.com/onsi/ginkgo/v2/exposedinternal/parallel_support"
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/version"
+	"github.com/scylladb/local-csi-driver/pkg/cmdutil"
+	"github.com/scylladb/local-csi-driver/pkg/genericclioptions"
+	"github.com/scylladb/local-csi-driver/pkg/signals"
+	ginkgotest "github.com/scylladb/local-csi-driver/pkg/test/ginkgo"
+	"github.com/scylladb/local-csi-driver/pkg/thirdparty/github.com/onsi/ginkgo/v2/exposedinternal/parallel_support"
+	"github.com/scylladb/local-csi-driver/pkg/version"
 	"github.com/spf13/cobra"
 	apierrors "k8s.io/apimachinery/pkg/util/errors"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/util/templates"
+
 	// Include suites
-	_ "github.com/scylladb/k8s-local-volume-provisioner/test/e2e"
+	_ "github.com/scylladb/local-csi-driver/test/e2e"
 )
 
 const (

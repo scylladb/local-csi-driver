@@ -3,8 +3,8 @@
 package tests
 
 import (
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/cmdutil"
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/genericclioptions"
+	"github.com/scylladb/local-csi-driver/pkg/cmdutil"
+	"github.com/scylladb/local-csi-driver/pkg/genericclioptions"
 	"github.com/spf13/cobra"
 	"k8s.io/kubectl/pkg/util/templates"
 )

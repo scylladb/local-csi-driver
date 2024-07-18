@@ -10,8 +10,8 @@ import (
 	"runtime"
 	"time"
 
-	cmd "github.com/scylladb/k8s-local-volume-provisioner/pkg/cmd/tests"
-	"github.com/scylladb/k8s-local-volume-provisioner/pkg/genericclioptions"
+	cmd "github.com/scylladb/local-csi-driver/pkg/cmd/tests"
+	"github.com/scylladb/local-csi-driver/pkg/genericclioptions"
 	"k8s.io/klog/v2"
 )
 
