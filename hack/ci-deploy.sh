@@ -6,27 +6,14 @@
 # Usage: ${0} <driver_image_ref>
 
 set -euxEo pipefail
+shopt -s inherit_errexit
 
-function wait-for-object-creation {
-    for i in {1..30}; do
-        { kubectl -n "${1}" get "${2}" && break; } || sleep 1
-    done
-}
+source "$( dirname "${BASH_SOURCE[0]}" )/lib/kube.sh"
 
 if [[ -z ${1+x} ]]; then
     echo "Missing driver image ref.\nUsage: ${0} <driver_image_ref>" >&2 >/dev/null
     exit 1
 fi
-
-function kubectl_create {
-    if [[ -z ${REENTRANT+x} ]]; then
-        # In an actual CI run we have to enforce that no two objects have the same name.
-        kubectl create "$@"
-    else
-        # For development iterations we want to update the objects.
-        kubectl apply "$@"
-    fi
-}
 
 ARTIFACTS_DIR=${ARTIFACTS_DIR:-$( mktemp -d )}
 DRIVER_IMAGE_REF=${1}
