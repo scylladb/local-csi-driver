@@ -4,7 +4,7 @@ WORKDIR /go/src/github.com/scylladb/local-csi-driver
 COPY . .
 RUN make build --warn-undefined-variables GO_BUILD_PACKAGES=./cmd/local-csi-driver
 
-FROM quay.io/scylladb/scylla-operator-images:base-ubi-9.4-minimal
+FROM quay.io/scylladb/scylla-operator-images:base-ubi-9.5-minimal
 SHELL ["/bin/bash", "-euEo", "pipefail", "-O", "inherit_errexit", "-c"]
 
 RUN microdnf install -y --enablerepo=almalinux-base-9 xfsprogs && \

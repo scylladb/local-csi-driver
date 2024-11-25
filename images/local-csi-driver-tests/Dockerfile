@@ -4,7 +4,7 @@ WORKDIR /go/src/github.com/scylladb/local-csi-driver
 COPY . .
 RUN make build --warn-undefined-variables GO_BUILD_PACKAGES="./cmd/local-csi-driver-tests ./vendor/k8s.io/kubernetes/cmd/kubectl"
 
-FROM quay.io/scylladb/scylla-operator-images:base-ubuntu-22.04
+FROM quay.io/scylladb/scylla-operator-images:base-ubi-9.5-minimal
 SHELL ["/bin/bash", "-euEo", "pipefail", "-O", "inherit_errexit", "-c"]
 
 WORKDIR /go/src/github.com/scylladb/local-csi-driver
