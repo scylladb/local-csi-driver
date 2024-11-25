@@ -1,6 +1,6 @@
 module github.com/scylladb/local-csi-driver
 
-go 1.22.4
+go 1.23
 
 require (
 	github.com/container-storage-interface/spec v1.9.0
