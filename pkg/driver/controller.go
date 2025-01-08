@@ -70,7 +70,20 @@ func (d *driver) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest)
 	}
 
 	if req.AccessibilityRequirements != nil && len(req.AccessibilityRequirements.Requisite) > 0 {
-		if !equality.Semantic.DeepEqual(req.AccessibilityRequirements.Requisite, d.getVolumeAccessibleTopology()) {
+		volumeAccessibleTopology := d.getVolumeAccessibleTopology()
+
+		var accessibleTopologySegments []map[string]string
+		var requiredTopologySegments []map[string]string
+
+		for _, accessibleTopology := range volumeAccessibleTopology {
+			accessibleTopologySegments = append(accessibleTopologySegments, accessibleTopology.Segments)
+		}
+
+		for _, requiredTopology := range req.AccessibilityRequirements.Requisite {
+			requiredTopologySegments = append(requiredTopologySegments, requiredTopology.Segments)
+		}
+
+		if !equality.Semantic.DeepEqual(requiredTopologySegments, accessibleTopologySegments) {
 			return nil, status.Errorf(codes.ResourceExhausted, "Cannot satisfy accessibility requirements")
 		}
 	}
