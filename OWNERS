@@ -3,15 +3,11 @@
 filters:
   ".*":
     approvers:
-    - zimnx
-    - mflendrich
+    - local-csi-driver-approvers
     reviewers:
-    - zimnx
-    - rzetelskik
-    - mflendrich
+    - local-csi-driver-reviewers
   "go\\.(mod|sum)$":
     required_reviewers:
-    - zimnx
-    - mflendrich
+    - local-csi-driver-approvers
     labels:
     - area/dependency

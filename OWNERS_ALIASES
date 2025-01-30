@@ -1,0 +1,11 @@
+# See the OWNERS docs at https://go.k8s.io/owners
+
+aliases:
+  local-csi-driver-reviewers:
+  - zimnx
+  - rzetelskik
+  - mflendrich
+  local-csi-driver-approvers:
+  - zimnx
+  - rzetelskik
+  - mflendrich
