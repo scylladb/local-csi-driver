@@ -11,11 +11,11 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/klog/v2"
 )
 
 const (
-	FlagLogLevelKey = "loglevel"
+	FlagLogLevelKey   = "loglevel"
+	flagLogLevelUsage = "Set the level of log output (0-10)."
 )
 
 func NormalizeNameForEnvVar(name string) string {
@@ -53,18 +53,39 @@ func ReadFlagsFromEnv(prefix string, cmd *cobra.Command) error {
 	return errors.NewAggregate(errs)
 }
 
+type proxyFlag struct {
+	parentFlag flag.Value
+	flagType   string
+}
+
+func (v *proxyFlag) Set(value string) error {
+	return v.parentFlag.Set(value)
+}
+
+func (v *proxyFlag) String() string {
+	return v.parentFlag.String()
+}
+
+func (v *proxyFlag) Type() string {
+	return v.flagType
+}
+
+// InstallKlog registers a "loglevel" flag which value propagates into "v" flag used by underlying logger.
 func InstallKlog(cmd *cobra.Command) {
-	level := flag.CommandLine.Lookup("v").Value.(*klog.Level)
-	levelPtr := (*int32)(level)
-	cmd.PersistentFlags().Int32Var(levelPtr, FlagLogLevelKey, *levelPtr, "Set the level of log output (0-10).")
+	vFlag := flag.CommandLine.Lookup("v")
+	if vFlag == nil {
+		panic("'v' flag is not installed")
+	}
+
+	logLevelFlagProxy := &proxyFlag{
+		parentFlag: vFlag.Value,
+		flagType:   "int32",
+	}
+	cmd.PersistentFlags().Var(logLevelFlagProxy, FlagLogLevelKey, flagLogLevelUsage)
+
+	// v might not be registered in cobra yet
 	if cmd.PersistentFlags().Lookup("v") == nil {
-		cmd.PersistentFlags().Int32Var(levelPtr, "v", *levelPtr, "Set the level of log output (0-10).")
+		cmd.PersistentFlags().Var(logLevelFlagProxy, "v", flagLogLevelUsage)
 	}
 	cmd.PersistentFlags().Lookup("v").Hidden = true
-
-	// Enable directory prefix.
-	err := flag.CommandLine.Lookup("add_dir_header").Value.Set("true")
-	if err != nil {
-		panic(err)
-	}
 }
