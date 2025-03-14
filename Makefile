@@ -164,6 +164,9 @@ update: update-gofmt
 .PHONY: update
 
 test-sanity:
+	ulimit -n
+	cat /proc/sys/net/core/somaxconn
+	cat /proc/sys/fs/file-max
 	$(GINKGO) $(GINKGO_TEST_COUNT) $(GINKGO_TEST_FLAGS) $(GINKGO_TEST_PACKAGES)
 .PHONY: test-sanity
 
