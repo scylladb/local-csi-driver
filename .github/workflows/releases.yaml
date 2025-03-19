@@ -43,7 +43,7 @@ jobs:
         echo "current_tag=${current_tag}" | tee -a ${GITHUB_ENV}
     
     - name: Generate and publish release notes
-      uses: scylladb/scylla-operator/.github/actions/release-notes@v1.9.0-alpha.4
+      uses: scylladb/scylla-operator/.github/actions/release-notes@master
       with:
         githubRepository: ${{ github.repository }}
         githubRef: ${{ env.current_tag }}
