@@ -1,4 +1,4 @@
-FROM quay.io/scylladb/scylla-operator-images:golang-1.23 AS builder
+FROM quay.io/scylladb/scylla-operator-images:golang-1.24 AS builder
 SHELL ["/bin/bash", "-euEo", "pipefail", "-O", "inherit_errexit", "-c"]
 WORKDIR /go/src/github.com/scylladb/local-csi-driver
 COPY . .
