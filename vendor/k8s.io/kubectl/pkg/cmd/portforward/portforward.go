@@ -31,6 +31,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/httpstream"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -50,7 +51,7 @@ import (
 type PortForwardOptions struct {
 	Namespace     string
 	PodName       string
-	RESTClient    *restclient.RESTClient
+	RESTClient    restclient.Interface
 	Config        *restclient.Config
 	PodClient     corev1client.PodsGetter
 	Address       []string
@@ -99,18 +100,14 @@ const (
 )
 
 func NewCmdPortForward(f cmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
-	opts := &PortForwardOptions{
-		PortForwarder: &defaultPortForwarder{
-			IOStreams: streams,
-		},
-	}
+	opts := NewDefaultPortForwardOptions(streams)
 	cmd := &cobra.Command{
 		Use:                   "port-forward TYPE/NAME [options] [LOCAL_PORT:]REMOTE_PORT [...[LOCAL_PORT_N:]REMOTE_PORT_N]",
 		DisableFlagsInUseLine: true,
 		Short:                 i18n.T("Forward one or more local ports to a pod"),
 		Long:                  portforwardLong,
 		Example:               portforwardExample,
-		ValidArgsFunction:     completion.PodResourceNameCompletionFunc(f),
+		ValidArgsFunction:     completion.ResourceAndPortCompletionFunc(f),
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(opts.Complete(f, cmd, args))
 			cmdutil.CheckErr(opts.Validate())
@@ -123,6 +120,14 @@ func NewCmdPortForward(f cmdutil.Factory, streams genericiooptions.IOStreams) *c
 	return cmd
 }
 
+func NewDefaultPortForwardOptions(streams genericiooptions.IOStreams) *PortForwardOptions {
+	return &PortForwardOptions{
+		PortForwarder: &defaultPortForwarder{
+			IOStreams: streams,
+		},
+	}
+}
+
 type portForwarder interface {
 	ForwardPorts(method string, url *url.URL, opts PortForwardOptions) error
 }
@@ -131,12 +136,30 @@ type defaultPortForwarder struct {
 	genericiooptions.IOStreams
 }
 
-func (f *defaultPortForwarder) ForwardPorts(method string, url *url.URL, opts PortForwardOptions) error {
+func createDialer(method string, url *url.URL, opts PortForwardOptions) (httpstream.Dialer, error) {
 	transport, upgrader, err := spdy.RoundTripperFor(opts.Config)
+	if err != nil {
+		return nil, err
+	}
+	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, method, url)
+	if !cmdutil.PortForwardWebsockets.IsDisabled() {
+		tunnelingDialer, err := portforward.NewSPDYOverWebsocketDialer(url, opts.Config)
+		if err != nil {
+			return nil, err
+		}
+		// First attempt tunneling (websocket) dialer, then fallback to spdy dialer.
+		dialer = portforward.NewFallbackDialer(tunnelingDialer, dialer, func(err error) bool {
+			return httpstream.IsUpgradeFailure(err) || httpstream.IsHTTPSProxyError(err)
+		})
+	}
+	return dialer, nil
+}
+
+func (f *defaultPortForwarder) ForwardPorts(method string, url *url.URL, opts PortForwardOptions) error {
+	dialer, err := createDialer(method, url, opts)
 	if err != nil {
 		return err
 	}
-	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, method, url)
 	fw, err := portforward.NewOnAddresses(dialer, opts.Address, opts.Ports, opts.StopChannel, opts.ReadyChannel, f.Out, f.ErrOut)
 	if err != nil {
 		return err
@@ -200,7 +223,9 @@ func convertPodNamedPortToNumber(ports []string, pod corev1.Pod) ([]string, erro
 	var converted []string
 	for _, port := range ports {
 		localPort, remotePort := splitPort(port)
-
+		if remotePort == "" {
+			return nil, fmt.Errorf("remote port cannot be empty")
+		}
 		containerPortStr := remotePort
 		_, err := strconv.Atoi(remotePort)
 		if err != nil {
@@ -385,9 +410,17 @@ func (o PortForwardOptions) Validate() error {
 	return nil
 }
 
+// Deprecated: Use RunPortForwardContext instead, which allows canceling.
 // RunPortForward implements all the necessary functionality for port-forward cmd.
 func (o PortForwardOptions) RunPortForward() error {
-	pod, err := o.PodClient.Pods(o.Namespace).Get(context.TODO(), o.PodName, metav1.GetOptions{})
+	return o.RunPortForwardContext(context.Background())
+}
+
+// RunPortForwardContext implements all the necessary functionality for port-forward cmd.
+// It ends portforwarding when an error is received from the backend, or an os.Interrupt
+// signal is received, or the provided context is done.
+func (o PortForwardOptions) RunPortForwardContext(ctx context.Context) error {
+	pod, err := o.PodClient.Pods(o.Namespace).Get(ctx, o.PodName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -400,8 +433,14 @@ func (o PortForwardOptions) RunPortForward() error {
 	signal.Notify(signals, os.Interrupt)
 	defer signal.Stop(signals)
 
+	returnCtx, returnCtxCancel := context.WithCancel(ctx)
+	defer returnCtxCancel()
+
 	go func() {
-		<-signals
+		select {
+		case <-signals:
+		case <-returnCtx.Done():
+		}
 		if o.StopChannel != nil {
 			close(o.StopChannel)
 		}
