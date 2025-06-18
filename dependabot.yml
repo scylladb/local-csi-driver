@@ -1,0 +1,27 @@
+# This is a copy of the equivalent file from the github.com/scylladb/scylla-operator
+# repository. If changing it, consider changing at source and propagating the update
+# to the dependant repositories.
+
+version: 2
+updates:
+- package-ecosystem: gomod
+  directory: /
+  schedule:
+    interval: weekly
+    day: wednesday
+    time: '5:00' # UTC
+  labels:
+  - priority/important-longterm
+  - kind/dependency-bump
+  groups:
+    gomod:
+        applies-to: version-updates
+        patterns:
+          - "*"
+- package-ecosystem: github-actions
+  directory: /
+  schedule:
+    interval: weekly
+  labels:
+  - priority/important-longterm
+  - kind/dependency-bump
