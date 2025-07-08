@@ -77,7 +77,7 @@ var _ = g.Describe("XFS Quotas", func() {
 
 		g.By(fmt.Sprintf("writing %d bytes to test file %s", storageframework.MinFileSize, testFile))
 		writeCmd := fmt.Sprintf("dd if=%s bs=%d count=1 of=%s", initFile, storageframework.MinFileSize, testFile)
-		_, stderr, err := e2evolume.PodExec(f, clientPod, writeCmd)
+		_, stderr, err := e2epod.ExecShellInPodWithFullOutput(ctx, f, clientPod.Name, writeCmd)
 		o.Expect(err).To(o.HaveOccurred())
 		o.Expect(stderr).To(o.Or(o.ContainSubstring("quota exceeded"), o.ContainSubstring("No space left on device")))
 	})
