@@ -136,7 +136,7 @@ var _ = g.Describe("Metrics", func() {
 		testFile := filepath.Join(mountPath, fmt.Sprintf("io-%d", writtenBytes))
 		g.By(fmt.Sprintf("Writing %d bytes to file on test volume", writtenBytes))
 		writeCmd := fmt.Sprintf("dd if=/dev/urandom bs=%d count=1 of=%s", writtenBytes, testFile)
-		_, _, err = e2evolume.PodExec(f, testPod, writeCmd)
+		_, _, err = e2epod.ExecShellInPodWithFullOutput(ctx, f, testPod.Name, writeCmd)
 		o.Expect(err).NotTo(o.HaveOccurred())
 
 		g.By("Awaiting kubelet metrics to be updated after write")
