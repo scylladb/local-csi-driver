@@ -3,11 +3,11 @@
 filters:
   ".*":
     approvers:
-    - local-csi-driver-approvers
+    - operator-approvers
     reviewers:
-    - local-csi-driver-reviewers
+    - operator-review-autoassignees
   "go\\.(mod|sum)$":
-    required_reviewers:
-    - local-csi-driver-approvers
+    reviewers:
+    - operator-approvers
     labels:
     - area/dependency
