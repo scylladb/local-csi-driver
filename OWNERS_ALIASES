@@ -1,13 +1,19 @@
 # See the OWNERS docs at https://go.k8s.io/owners
 
 aliases:
-  local-csi-driver-reviewers:
-  - zimnx
-  - rzetelskik
-  - mflendrich
+  operator-team:
+  # All members of the team.
   - czeslavo
-  local-csi-driver-approvers:
-  - zimnx
-  - rzetelskik
   - mflendrich
+  - rzetelskik
+  operator-review-autoassignees:
+  # Subset of operator-team that will be automatically requested for reviews in PRs.
   - czeslavo
+  - rzetelskik
+  operator-approvers:
+  # Subset of operator-team that has "approve" rights.
+  # Rule for adding new members:
+  # Demonstrated meaningful contributions to the majority of the codebase
+  # over a period of at least 6 months, OR a team lead.
+  - mflendrich
+  - rzetelskik
