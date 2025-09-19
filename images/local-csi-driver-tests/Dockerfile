@@ -1,10 +1,10 @@
-FROM quay.io/scylladb/scylla-operator-images:golang-1.24 AS builder
+FROM quay.io/scylladb/scylla-operator-images:golang-1.25 AS builder
 SHELL ["/bin/bash", "-euEo", "pipefail", "-O", "inherit_errexit", "-c"]
 WORKDIR /go/src/github.com/scylladb/local-csi-driver
 COPY . .
 RUN make build --warn-undefined-variables GO_BUILD_PACKAGES="./cmd/local-csi-driver-tests ./vendor/k8s.io/kubernetes/cmd/kubectl"
 
-FROM quay.io/scylladb/scylla-operator-images:base-ubi-9.5-minimal
+FROM quay.io/scylladb/scylla-operator-images:base-ubi-9.6-minimal
 SHELL ["/bin/bash", "-euEo", "pipefail", "-O", "inherit_errexit", "-c"]
 
 WORKDIR /go/src/github.com/scylladb/local-csi-driver
