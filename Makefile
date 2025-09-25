@@ -114,39 +114,40 @@ update-gofmt:
 	@$(GOFMT) $(GOFMT_FLAGS) -w $(go_packages_dirs)
 .PHONY: update-gofmt
 
+update-k8sio-gomod-replace:
+	./hack/update-k8sio-gomod-replace.sh
+.PHONY: update-k8sio-gomod-replace
+
 # We need to force locale so different envs sort files the same way for recursive traversals
 diff :=LC_COLLATE=C diff --no-dereference -N
 
+# setup-deps-verification sets up two copies of the project for dependency verification:
+# 1. A symbolic link to the current directory (as-is)
+# 2. A copy with freshly processed dependencies (updated go.mod replace directives, tidied go.mod and go.sum, and recreated vendor/)
+# This allows comparing go.mod, go.sum, and vendor/ contents to ensure they are correct.
 # $1 - temporary directory
-define restore-deps
+define setup-deps-verification
 	ln -s $(abspath ./) "$(1)"/current
 	cp -R -H ./ "$(1)"/updated
 	$(RM) -r "$(1)"/updated/vendor
-	cd "$(1)"/updated && $(GO) mod tidy && $(GO) mod vendor && $(GO) mod verify
-	cd "$(1)" && $(diff) -r {current,updated}/vendor/ > updated/deps.diff || true
+	cd "$(1)"/updated && \
+		./hack/update-k8sio-gomod-replace.sh && \
+		$(GO) mod tidy && \
+		$(GO) mod vendor && \
+		$(GO) mod verify
 endef
 
 verify-deps: tmp_dir:=$(shell mktemp -d)
 verify-deps:
-	$(call restore-deps,$(tmp_dir))
+	$(call setup-deps-verification,$(tmp_dir))
 	@echo $(diff) "$(tmp_dir)"/{current,updated}/go.mod
-	@     $(diff) "$(tmp_dir)"/{current,updated}/go.mod || ( echo '`go.mod` content is incorrect - did you run `go mod tidy`?' && false )
+	@     $(diff) "$(tmp_dir)"/{current,updated}/go.mod || ( echo '`go.mod` content is incorrect - did you run `make update-k8sio-gomod-replace` and `go mod tidy`?' && false )
 	@echo $(diff) "$(tmp_dir)"/{current,updated}/go.sum
 	@     $(diff) "$(tmp_dir)"/{current,updated}/go.sum || ( echo '`go.sum` content is incorrect - did you run `go mod tidy`?' && false )
-	@echo $(diff) '$(tmp_dir)'/{current,updated}/deps.diff
-	@     $(diff) '$(tmp_dir)'/{current,updated}/deps.diff || ( \
-		echo "ERROR: Content of 'vendor/' directory doesn't match 'go.mod' configuration and the overrides in 'deps.diff'!" && \
-		echo 'Did you run `go mod vendor`?' && \
-		echo "If this is an intentional change (a carry patch) please update the 'deps.diff' using 'make update-deps-overrides'." && \
-		false \
-	)
+	@echo $(diff) -r "$(tmp_dir)"/{current,updated}/vendor
+	@     $(diff) -r "$(tmp_dir)"/{current,updated}/vendor || ( echo '`vendor/` content is incorrect - did you run `go mod vendor`?' && false )
+	$(RM) -r "$(tmp_dir)"
 .PHONY: verify-deps
-
-update-deps-overrides: tmp_dir:=$(shell mktemp -d)
-update-deps-overrides:
-	$(call restore-deps,$(tmp_dir))
-	cp "$(tmp_dir)"/{updated,current}/deps.diff
-.PHONY: update-deps-overrides
 
 verify-links:
 	@set -euEo pipefail; broken_links=( $$( find . -type l ! -exec test -e {} \; -print ) ); \
