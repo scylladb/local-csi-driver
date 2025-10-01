@@ -14,11 +14,11 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/common v0.66.1
 	github.com/spf13/cobra v1.10.1
-	github.com/spf13/pflag v1.0.9
-	golang.org/x/sync v0.16.0
-	golang.org/x/sys v0.35.0
+	github.com/spf13/pflag v1.0.10
+	golang.org/x/sync v0.17.0
+	golang.org/x/sys v0.36.0
 	google.golang.org/grpc v1.75.1
-	google.golang.org/protobuf v1.36.8
+	google.golang.org/protobuf v1.36.9
 	k8s.io/api v0.34.1
 	k8s.io/apimachinery v0.34.1
 	k8s.io/apiserver v0.34.1
