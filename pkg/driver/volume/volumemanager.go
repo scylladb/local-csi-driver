@@ -212,7 +212,7 @@ func (v *VolumeManager) GetVolumeStatistics(volumePath string) (*VolumeStatistic
 func (v *VolumeManager) Mount(volumeID, targetPath, fsType string, mountOptions []string) error {
 	path := v.getVolumePath(volumeID)
 
-	err := os.Mkdir(targetPath, 0770)
+	err := os.MkdirAll(targetPath, 0770)
 	if err != nil && !os.IsExist(err) {
 		return fmt.Errorf("can't create target path at %q: %w", targetPath, err)
 	}
