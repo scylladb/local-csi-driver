@@ -1,0 +1,42 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "enabledManagers": [
+    "custom.regex"
+  ],
+  "schedule": [
+    "before 5am on monday"
+  ],
+  "labels": [
+    "kind/dependency-bump",
+    "priority/important-longterm"
+  ],
+  "packageRules": [
+    {
+      "description": "Dockerfile base images should be updated every weekday",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchFileNames": [
+        "images/**/Dockerfile"
+      ],
+      "schedule": [
+        "before 5am every weekday"
+      ]
+    }
+  ],
+  "customManagers": [
+    {
+      "description": "Custom manager for Dockerfile with Renovate annotations matching the regex.",
+      "customType": "regex",
+      "fileMatch": [
+        "images/.*/Dockerfile"
+      ],
+      "matchStrings": [
+        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)(\\s+packageName=(?<packageName>\\S+))?(\\s+registryUrl=(?<registryUrl>\\S+))?(\\s+versioning=(?<versioning>\\S+))?\\s*\\nFROM\\s+\\S+:(?<currentValue>\\S+)"
+      ]
+    }
+  ]
+}
