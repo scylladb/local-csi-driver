@@ -140,6 +140,41 @@ func (s *StateManager) SaveVolumeState(volume *VolumeState) (err error) {
 	return nil
 }
 
+func (s *StateManager) UpdateVolumeState(volume *VolumeState) (err error) {
+	s.mut.Lock()
+	oldVolume, exists := s.volumes[volume.ID]
+	if !exists {
+		s.mut.Unlock()
+		return fmt.Errorf("volume %q not found", volume.ID)
+	}
+	oldSize := oldVolume.Size
+	s.mut.Unlock()
+
+	statePath := s.getVolumeStatePath(volume.ID)
+
+	f, err := os.Create(statePath)
+	if err != nil {
+		return fmt.Errorf("can't open state file %q: %w", statePath, err)
+	}
+
+	defer func() {
+		closeErr := f.Close()
+		err = errors.NewAggregate([]error{err, closeErr})
+	}()
+
+	err = json.NewEncoder(f).Encode(volume)
+	if err != nil {
+		return fmt.Errorf("can't encode state file %q: %w", statePath, err)
+	}
+
+	s.mut.Lock()
+	defer s.mut.Unlock()
+	s.volumes[volume.ID] = volume
+	s.volumesTotalSize += volume.Size - oldSize
+
+	return nil
+}
+
 func (s *StateManager) DeleteVolumeState(id string) error {
 	statePath := s.getVolumeStatePath(id)
 	err := os.Remove(statePath)

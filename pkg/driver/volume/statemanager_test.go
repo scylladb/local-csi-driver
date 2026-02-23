@@ -181,6 +181,74 @@ func TestStateManager(t *testing.T) {
 				return nil
 			},
 		},
+		{
+			name: "UpdateVolumeState updates size correctly",
+			existingFiles: map[string]*VolumeState{
+				"volume-1-uuid.json": newVolumeState("volume-1-uuid", "volume-1"),
+			},
+			trigger: func(sm *StateManager) error {
+				vs := &VolumeState{
+					ID:      "volume-1-uuid",
+					Name:    "volume-1",
+					LimitID: 1,
+					Size:    2048,
+				}
+				return sm.UpdateVolumeState(vs)
+			},
+			check: func(dir string, sm *StateManager) error {
+				vs := sm.GetVolumeStateByID("volume-1-uuid")
+				if vs == nil {
+					return fmt.Errorf("expected non-nil volume state, got nil")
+				}
+				if vs.Size != 2048 {
+					return fmt.Errorf("expected size 2048, got %d", vs.Size)
+				}
+
+				totalSize := sm.GetTotalVolumesSize()
+				if totalSize != 2048 {
+					return fmt.Errorf("expected total size 2048, got %d", totalSize)
+				}
+
+				stateFilePath := path.Join(dir, "volume-1-uuid.json")
+				stateFile, err := os.Open(stateFilePath)
+				if err != nil {
+					return fmt.Errorf("can't open file %q: %w", stateFilePath, err)
+				}
+				defer stateFile.Close()
+
+				fsVs := &VolumeState{}
+				err = json.NewDecoder(stateFile).Decode(fsVs)
+				if err != nil {
+					return fmt.Errorf("can't decode state file from fs %q: %w", stateFilePath, err)
+				}
+
+				if fsVs.Size != 2048 {
+					return fmt.Errorf("expected size 2048 in file, got %d", fsVs.Size)
+				}
+
+				return nil
+			},
+		},
+		{
+			name:          "UpdateVolumeState fails for unknown volume",
+			existingFiles: map[string]*VolumeState{},
+			trigger: func(sm *StateManager) error {
+				vs := &VolumeState{
+					ID:      "unknown-uuid",
+					Name:    "unknown",
+					LimitID: 1,
+					Size:    2048,
+				}
+				err := sm.UpdateVolumeState(vs)
+				if err == nil {
+					return fmt.Errorf("expected error for unknown volume, got nil")
+				}
+				return nil
+			},
+			check: func(dir string, sm *StateManager) error {
+				return nil
+			},
+		},
 	}
 
 	for i := range tt {

@@ -208,10 +208,59 @@ func (d *driver) ValidateVolumeCapabilities(ctx context.Context, req *csi.Valida
 	}, nil
 }
 
+func (d *driver) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
+	klog.V(4).InfoS("New request", "server", "controller", "function", "ControllerExpandVolume", "request", protosanitizer.StripSecrets(req))
+
+	volumeID := req.GetVolumeId()
+	if len(volumeID) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "VolumeID is missing in request")
+	}
+
+	capacityRange := req.GetCapacityRange()
+	if capacityRange == nil {
+		return nil, status.Error(codes.InvalidArgument, "CapacityRange is missing in request")
+	}
+
+	newCapacity := capacityRange.GetRequiredBytes()
+	if newCapacity <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "RequiredBytes must be positive")
+	}
+
+	vs := d.volumeManager.GetVolumeStateByID(volumeID)
+	if vs == nil {
+		return nil, status.Errorf(codes.NotFound, "Volume %q not found", volumeID)
+	}
+
+	if newCapacity < vs.Size {
+		return nil, status.Errorf(codes.InvalidArgument, "Cannot shrink volume from %d to %d bytes", vs.Size, newCapacity)
+	}
+
+	if newCapacity == vs.Size {
+		return &csi.ControllerExpandVolumeResponse{
+			CapacityBytes:         vs.Size,
+			NodeExpansionRequired: false,
+		}, nil
+	}
+
+	d.mut.Lock()
+	defer d.mut.Unlock()
+
+	err := d.volumeManager.ExpandVolume(volumeID, newCapacity)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to expand volume: %v", err)
+	}
+
+	return &csi.ControllerExpandVolumeResponse{
+		CapacityBytes:         newCapacity,
+		NodeExpansionRequired: false,
+	}, nil
+}
+
 func (d *driver) ControllerGetCapabilities(ctx context.Context, request *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
 	cs := []csi.ControllerServiceCapability_RPC_Type{
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
 		csi.ControllerServiceCapability_RPC_GET_CAPACITY,
+		csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
 	}
 
 	var csc []*csi.ControllerServiceCapability

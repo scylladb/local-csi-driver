@@ -252,6 +252,57 @@ func (v *VolumeManager) GetVolumeStateByID(id string) *VolumeState {
 	return v.state.GetVolumeStateByID(id)
 }
 
+func (v *VolumeManager) ExpandVolume(volID string, newCapacity int64) error {
+	vs := v.state.GetVolumeStateByID(volID)
+	if vs == nil {
+		return fmt.Errorf("volume %q not found", volID)
+	}
+
+	if newCapacity < vs.Size {
+		return fmt.Errorf("new capacity %d is less than current capacity %d", newCapacity, vs.Size)
+	}
+
+	if newCapacity == vs.Size {
+		return nil
+	}
+
+	capacityIncrease := newCapacity - vs.Size
+	availableCapacity, err := v.GetAvailableCapacity()
+	if err != nil {
+		return fmt.Errorf("can't check available capacity: %w", err)
+	}
+
+	if capacityIncrease > availableCapacity {
+		return fmt.Errorf("requested capacity increase of %dB exceeds available capacity (%dB)", capacityIncrease, availableCapacity)
+	}
+
+	err = v.limiter.SetLimit(vs.LimitID, newCapacity)
+	if err != nil {
+		return fmt.Errorf("can't set new limit: %w", err)
+	}
+
+	updatedVS := &VolumeState{
+		Name:    vs.Name,
+		ID:      vs.ID,
+		LimitID: vs.LimitID,
+		Size:    newCapacity,
+	}
+
+	err = v.state.UpdateVolumeState(updatedVS)
+	if err != nil {
+		// Try to rollback the limit change
+		rollbackErr := v.limiter.SetLimit(vs.LimitID, vs.Size)
+		if rollbackErr != nil {
+			klog.ErrorS(rollbackErr, "Failed to rollback limit after state update failure", "volumeID", volID)
+		}
+		return fmt.Errorf("can't update volume state: %w", err)
+	}
+
+	klog.V(2).InfoS("Expanded volume", "volumeID", volID, "oldCapacity", vs.Size, "newCapacity", newCapacity)
+
+	return nil
+}
+
 func (v *VolumeManager) GetVolumeStateByName(name string) *VolumeState {
 	return v.state.GetVolumeStateByName(name)
 }
