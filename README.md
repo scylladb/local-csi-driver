@@ -6,8 +6,6 @@
 
 ## Local Volume Provisioner
 
-**This repository contains an experimental code. ScyllaDB don't provide any support, nor any guarantees about backward compatibility.** 
-
 The Local Volume Provisioner implements the [Container Storage Interface (CSI)](https://github.com/container-storage-interface/spec/blob/master/spec.md),
 a specification for container orchestrators to manage the lifecycle of volumes.
 
