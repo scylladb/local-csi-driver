@@ -1,5 +1,5 @@
 # renovate: datasource=docker depName=golang packageName=quay.io/scylladb/scylla-operator-images versioning=regex:^golang-(?<major>\d+)\.(?<minor>\d+)$
-FROM quay.io/scylladb/scylla-operator-images:golang-1.25 AS builder
+FROM quay.io/scylladb/scylla-operator-images:golang-1.26 AS builder
 SHELL ["/bin/bash", "-euEo", "pipefail", "-O", "inherit_errexit", "-c"]
 WORKDIR /go/src/github.com/scylladb/local-csi-driver
 COPY . .
