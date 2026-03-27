@@ -226,6 +226,17 @@ func (v *VolumeManager) Mount(volumeID, targetPath, fsType string, mountOptions 
 	return nil
 }
 
+func (v *VolumeManager) IsMounted(targetPath string) (bool, error) {
+	notMnt, err := v.mounter.IsLikelyNotMountPoint(targetPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to check mount point %q: %w", targetPath, err)
+	}
+	return !notMnt, nil
+}
+
 func (v *VolumeManager) Unmount(targetPath string) error {
 	err := v.mounter.Unmount(targetPath)
 	if err != nil {

@@ -131,34 +131,42 @@ func (o *LocalDriverOptions) Run(streams genericclioptions.IOStreams, cmd *cobra
 }
 
 func (o *LocalDriverOptions) run(ctx context.Context, _ genericclioptions.IOStreams) error {
+	klog.InfoS("Initializing state manager", "volumesDir", o.VolumesDir)
 	sm, err := volume.NewStateManager(o.VolumesDir)
 	if err != nil {
 		return fmt.Errorf("can't create state manager: %w", err)
 	}
+	klog.InfoS("State manager initialized", "volumes", len(sm.GetVolumes()))
 
+	klog.InfoS("Detecting filesystem type", "volumesDir", o.VolumesDir)
 	volumeFsType, err := fs.GetFilesystem(o.VolumesDir)
 	if err != nil {
 		return fmt.Errorf("can't get filesystem of volume dir %q: %w", o.VolumesDir, err)
 	}
+	klog.InfoS("Filesystem detected", "type", volumeFsType)
 
 	var limiter limit.Limiter = &limit.NoopLimiter{}
 
 	switch volumeFsType {
 	case "xfs":
+		klog.InfoS("Initializing XFS limiter", "volumeCount", len(sm.GetVolumes()))
 		xl, err := xfs.NewXFSLimiter(o.VolumesDir, sm.GetVolumes())
 		if err != nil {
 			return fmt.Errorf("can't create XFS limiter: %w", err)
 		}
 		limiter = xl
+		klog.InfoS("XFS limiter initialized")
 	default:
 		return fmt.Errorf("unsupported volumes dir filesystem %q", volumeFsType)
 	}
 
+	klog.InfoS("Creating volume manager")
 	vm, err := volume.NewVolumeManager(o.VolumesDir, sm, volume.WithLimiter(limiter))
 	if err != nil {
 		return fmt.Errorf("can't create driver: %w", err)
 	}
 
+	klog.InfoS("Creating gRPC listener", "socket", o.Listen)
 	if err := os.Remove(o.Listen); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("can't remove file at %q: %w", o.Listen, err)
 	}

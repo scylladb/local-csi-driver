@@ -54,6 +54,17 @@ func (d *driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 		return nil, status.Error(codes.InvalidArgument, "Volume capability access type must be mount")
 	}
 
+	// CSI spec requires NodePublishVolume to be idempotent.
+	// If the volume is already mounted at the target path, return success.
+	isMounted, err := d.volumeManager.IsMounted(targetPath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to check mount status: %v", err)
+	}
+	if isMounted {
+		klog.V(2).InfoS("Volume already mounted, skipping", "volumeID", volumeID, "targetPath", targetPath)
+		return &csi.NodePublishVolumeResponse{}, nil
+	}
+
 	mountOptions := []string{"bind"}
 	if req.GetReadonly() {
 		mountOptions = append(mountOptions, "ro")
