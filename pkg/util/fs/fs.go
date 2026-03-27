@@ -3,26 +3,25 @@
 package fs
 
 import (
-	"bytes"
 	"fmt"
-	"os/exec"
-	"strings"
+
+	"golang.org/x/sys/unix"
 )
 
+// XFS magic number from statfs
+const xfsMagic = 0x58465342
+
 func GetFilesystem(path string) (string, error) {
-	cmd := exec.Command("stat", "-f", "-c", "%T", path)
-	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-	err := cmd.Run()
+	var stat unix.Statfs_t
+	err := unix.Statfs(path, &stat)
 	if err != nil {
-		return "", fmt.Errorf("can't run stat on %q: %w, stdout: %q, stderr: %q", path, err, stdout.String(), stderr.String())
+		return "", fmt.Errorf("can't statfs %q: %w", path, err)
 	}
 
-	fsType := strings.TrimSpace(stdout.String())
-	if len(fsType) == 0 {
-		return "", fmt.Errorf("can't get filesystem information about %q", path)
+	switch stat.Type {
+	case xfsMagic:
+		return "xfs", nil
+	default:
+		return fmt.Sprintf("0x%x", stat.Type), nil
 	}
-
-	return fsType, nil
 }

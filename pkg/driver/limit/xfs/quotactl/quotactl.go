@@ -5,6 +5,7 @@ package quotactl
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"syscall"
 	"unsafe"
 
@@ -89,6 +90,14 @@ var (
 	IDNotFoundErr = errors.New("id not found")
 )
 
+// cachedDevice caches the resolved device pointer for a mount point
+// to avoid re-parsing the mount table on every quota operation.
+var (
+	cachedDeviceMu    sync.Mutex
+	cachedDevicePtr   *byte
+	cachedDevicePath  string
+)
+
 // GetQuota returns quota information for the provided ID and quota type.
 func GetQuota(fsPath string, quotaType QuotaType, id uint32) (*DiskQuota, error) {
 	device, err := getMountDevice(fsPath)
@@ -130,6 +139,13 @@ func SetQuota(fsPath string, quotaType QuotaType, dq *DiskQuota) error {
 }
 
 func getMountDevice(mountPoint string) (*byte, error) {
+	cachedDeviceMu.Lock()
+	defer cachedDeviceMu.Unlock()
+
+	if cachedDevicePtr != nil && cachedDevicePath == mountPoint {
+		return cachedDevicePtr, nil
+	}
+
 	entries, err := mount.New("").List()
 	if err != nil {
 		return nil, fmt.Errorf("can't list mount points at %q: %w", mountPoint, err)
@@ -142,6 +158,8 @@ func getMountDevice(mountPoint string) (*byte, error) {
 				return nil, fmt.Errorf("can't create byte ptr from string %q: %w", e.Device, err)
 			}
 
+			cachedDevicePtr = deviceArg
+			cachedDevicePath = mountPoint
 			return deviceArg, nil
 		}
 	}
