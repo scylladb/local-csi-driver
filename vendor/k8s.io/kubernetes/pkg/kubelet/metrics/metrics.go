@@ -136,7 +136,7 @@ const (
 	// Metric for tracking garbage collected images
 	ImageGarbageCollectedTotalKey = "image_garbage_collected_total"
 
-	// Metric for tracking aligment of compute resources
+	// Metric for tracking alignment of compute resources
 	ContainerAlignedComputeResourcesNameKey          = "container_aligned_compute_resources_count"
 	ContainerAlignedComputeResourcesFailureNameKey   = "container_aligned_compute_resources_failure_count"
 	ContainerAlignedComputeResourcesScopeLabelKey    = "scope"
@@ -176,6 +176,9 @@ const (
 	PodInfeasibleResizesKey          = "pod_infeasible_resizes_total"
 	PodInProgressResizesKey          = "pod_in_progress_resizes"
 	PodDeferredAcceptedResizesKey    = "pod_deferred_accepted_resizes_total"
+
+	// Metric key for podcertificate states.
+	PodCertificateStatesKey = "podcertificate_states"
 )
 
 type imageSizeBucket struct {
@@ -924,7 +927,7 @@ var (
 		},
 	)
 
-	// TopologyManagerAdmissionDuration is a Histogram that tracks the duration (in seconds) to serve a pod admission request.
+	// TopologyManagerAdmissionDuration is a Histogram that tracks the duration (in milliseconds) to serve a pod admission request.
 	TopologyManagerAdmissionDuration = metrics.NewHistogram(
 		&metrics.HistogramOpts{
 			Subsystem:      KubeletSubsystem,
@@ -944,7 +947,7 @@ var (
 			StabilityLevel: metrics.ALPHA,
 		},
 	)
-	// OrphanPodCleanedVolumes is number of times that removeOrphanedPodVolumeDirs failed.
+	// OrphanPodCleanedVolumesErrors is the number of times that removeOrphanedPodVolumeDirs failed.
 	OrphanPodCleanedVolumesErrors = metrics.NewGauge(
 		&metrics.GaugeOpts{
 			Subsystem:      KubeletSubsystem,
@@ -1075,7 +1078,8 @@ var (
 		[]string{"driver_name", "method_name", "grpc_status_code"},
 	)
 
-	DRAResourceClaimsInUseDesc = metrics.NewDesc(DRASubsystem+"_resource_claims_in_use",
+	DRAResourceClaimsInUseDesc = metrics.NewDesc(
+		metrics.BuildFQName("", DRASubsystem, "resource_claims_in_use"),
 		"The number of ResourceClaims that are currently in use on the node, by driver name (driver_name label value) and across all drivers (special value <any> for driver_name). Note that the sum of all by-driver counts is not the total number of in-use ResourceClaims because the same ResourceClaim might use devices from different drivers. Instead, use the count for the <any> driver_name.",
 		[]string{"driver_name"},
 		nil,
@@ -1094,13 +1098,13 @@ var (
 		[]string{"reason"},
 	)
 
-	// ImageVolumeRequestedTotal trakcs the number of requested image volumes.
+	// ImageVolumeRequestedTotal tracks the number of requested image volumes.
 	ImageVolumeRequestedTotal = metrics.NewCounter(
 		&metrics.CounterOpts{
 			Subsystem:      KubeletSubsystem,
 			Name:           ImageVolumeRequestedTotalKey,
 			Help:           "Number of requested image volumes.",
-			StabilityLevel: metrics.ALPHA,
+			StabilityLevel: metrics.BETA,
 		},
 	)
 
@@ -1110,7 +1114,7 @@ var (
 			Subsystem:      KubeletSubsystem,
 			Name:           ImageVolumeMountedSucceedTotalKey,
 			Help:           "Number of successful image volume mounts.",
-			StabilityLevel: metrics.ALPHA,
+			StabilityLevel: metrics.BETA,
 		},
 	)
 
@@ -1120,7 +1124,7 @@ var (
 			Subsystem:      KubeletSubsystem,
 			Name:           ImageVolumeMountedErrorsTotalKey,
 			Help:           "Number of failed image volume mounts.",
-			StabilityLevel: metrics.ALPHA,
+			StabilityLevel: metrics.BETA,
 		},
 	)
 
@@ -1194,7 +1198,7 @@ var (
 var registerMetrics sync.Once
 
 // Register registers all metrics.
-func Register(collectors ...metrics.StableCollector) {
+func Register() {
 	// Register the metrics.
 	registerMetrics.Do(func() {
 		legacyregistry.MustRegister(FirstNetworkPodStartSLIDuration)
@@ -1274,10 +1278,6 @@ func Register(collectors ...metrics.StableCollector) {
 		legacyregistry.MustRegister(OrphanPodCleanedVolumes)
 		legacyregistry.MustRegister(OrphanPodCleanedVolumesErrors)
 
-		for _, collector := range collectors {
-			legacyregistry.CustomMustRegister(collector)
-		}
-
 		if utilfeature.DefaultFeatureGate.Enabled(features.GracefulNodeShutdown) &&
 			utilfeature.DefaultFeatureGate.Enabled(features.GracefulNodeShutdownBasedOnPodPriority) {
 			legacyregistry.MustRegister(GracefulShutdownStartTime)
@@ -1312,6 +1312,10 @@ func Register(collectors ...metrics.StableCollector) {
 			legacyregistry.MustRegister(PodDeferredAcceptedResizes)
 		}
 	})
+}
+
+func RegisterCollectors(collectors ...metrics.StableCollector) {
+	legacyregistry.CustomMustRegister(collectors...)
 }
 
 // GetGather returns the gatherer. It used by test case outside current package.
