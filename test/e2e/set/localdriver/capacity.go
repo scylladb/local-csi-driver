@@ -17,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeframework "k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	e2epv "k8s.io/kubernetes/test/e2e/framework/pv"
 	e2evolume "k8s.io/kubernetes/test/e2e/framework/volume"
 	storageframework "k8s.io/kubernetes/test/e2e/storage/framework"
 	admissionapi "k8s.io/pod-security-admission/api"
@@ -67,9 +68,9 @@ var _ = g.Describe("Node Capacity", func() {
 		g.By("Awaiting CSIStorageCapacity to be available for all nodes in the cluster")
 
 		prePodCapacities := make(map[string]*resource.Quantity, len(nodesInCluster.Items))
-		o.Eventually(func() []storagev1.CSIStorageCapacity {
+		o.Eventually(func(g o.Gomega) {
 			csiStorageCapacities, err := f.ClientSet.StorageV1().CSIStorageCapacities(driverNamespace).List(ctx, metav1.ListOptions{})
-			o.Expect(err).NotTo(o.HaveOccurred())
+			g.Expect(err).NotTo(o.HaveOccurred())
 
 			var ourCsc []storagev1.CSIStorageCapacity
 			for _, csc := range csiStorageCapacities.Items {
@@ -80,8 +81,8 @@ var _ = g.Describe("Node Capacity", func() {
 				ourCsc = append(ourCsc, csc)
 			}
 
-			return ourCsc
-		}).WithTimeout(2 * capacityPollInterval).WithPolling(time.Second).Should(o.HaveLen(len(nodesInCluster.Items)))
+			g.Expect(ourCsc).To(o.HaveLen(len(nodesInCluster.Items)))
+		}).WithTimeout(2 * capacityPollInterval).WithPolling(time.Second).Should(o.Succeed())
 
 		csiStorageCapacities, err := f.ClientSet.StorageV1().CSIStorageCapacities(driverNamespace).List(ctx, metav1.ListOptions{})
 		o.Expect(err).NotTo(o.HaveOccurred())
@@ -126,10 +127,11 @@ var _ = g.Describe("Node Capacity", func() {
 		var postPodCapacity *resource.Quantity
 		g.By(fmt.Sprintf("awaiting CSIStorageCapacity to be updated from %s", prePodCapacities[nodeNameWhereTestPodLanded]))
 
-		o.Eventually(func() bool {
-			csiStorageCapacities, err = f.ClientSet.StorageV1().CSIStorageCapacities(driverNamespace).List(ctx, metav1.ListOptions{})
-			o.Expect(err).NotTo(o.HaveOccurred())
+		o.Eventually(func(g o.Gomega) {
+			csiStorageCapacities, err := f.ClientSet.StorageV1().CSIStorageCapacities(driverNamespace).List(ctx, metav1.ListOptions{})
+			g.Expect(err).NotTo(o.HaveOccurred())
 
+			postPodCapacity = nil
 			for _, csc := range csiStorageCapacities.Items {
 				if csc.StorageClassName != testStorageClassName {
 					continue
@@ -144,9 +146,9 @@ var _ = g.Describe("Node Capacity", func() {
 				break
 			}
 
-			o.Expect(postPodCapacity).ToNot(o.BeNil())
-			return postPodCapacity.Cmp(*prePodCapacities[nodeNameWhereTestPodLanded]) == -1
-		}).WithTimeout(2 * capacityPollInterval).WithPolling(time.Second).Should(o.BeTrue())
+			g.Expect(postPodCapacity).ToNot(o.BeNil())
+			g.Expect(postPodCapacity.Cmp(*prePodCapacities[nodeNameWhereTestPodLanded])).To(o.Equal(-1))
+		}).WithTimeout(2 * capacityPollInterval).WithPolling(time.Second).Should(o.Succeed())
 
 		g.By(fmt.Sprintf("CSIStorageCapacity has been updated to %s", postPodCapacity))
 
@@ -164,14 +166,18 @@ var _ = g.Describe("Node Capacity", func() {
 		err = e2epod.DeletePodWithWait(ctx, f.ClientSet, testPod)
 		o.Expect(err).NotTo(o.HaveOccurred())
 
+		// Only the claim is deleted here. CleanupResource would delete the storage
+		// class as well, and the provisioner removes the CSIStorageCapacity objects
+		// along with it, leaving nothing to observe below. The deferred
+		// CleanupResource takes care of the storage class.
 		g.By("deleting test pod pvc")
-		err = volResource.CleanupResource(ctx)
+		err = e2epv.DeletePersistentVolumeClaim(ctx, f.ClientSet, volResource.Pvc.Name, volResource.Pvc.Namespace)
 		o.Expect(err).NotTo(o.HaveOccurred())
 
 		// Node storage capacity should go back to initial cap
-		o.Eventually(func() bool {
-			csiStorageCapacities, err = f.ClientSet.StorageV1().CSIStorageCapacities(driverNamespace).List(ctx, metav1.ListOptions{})
-			o.Expect(err).NotTo(o.HaveOccurred())
+		o.Eventually(func(g o.Gomega) {
+			csiStorageCapacities, err := f.ClientSet.StorageV1().CSIStorageCapacities(driverNamespace).List(ctx, metav1.ListOptions{})
+			g.Expect(err).NotTo(o.HaveOccurred())
 			var postPodDeletionCapacity *resource.Quantity
 
 			for _, csc := range csiStorageCapacities.Items {
@@ -188,9 +194,8 @@ var _ = g.Describe("Node Capacity", func() {
 				break
 			}
 
-			o.Expect(postPodDeletionCapacity).ToNot(o.BeNil())
-
-			return postPodDeletionCapacity.Equal(*prePodCapacities[nodeNameWhereTestPodLanded])
-		}).WithTimeout(2 * capacityPollInterval).WithPolling(time.Second).Should(o.BeTrue())
+			g.Expect(postPodDeletionCapacity).ToNot(o.BeNil())
+			g.Expect(postPodDeletionCapacity.Equal(*prePodCapacities[nodeNameWhereTestPodLanded])).To(o.BeTrue())
+		}).WithTimeout(2 * capacityPollInterval).WithPolling(time.Second).Should(o.Succeed())
 	})
 })
