@@ -28,6 +28,27 @@ function wait-for-object-creation {
     done
 }
 
+# Waits until the provisioner published CSIStorageCapacity for a storage class.
+# Capacity is published on a poll interval, so right after the driver starts there
+# is a window in which no capacity exists yet. Tests that create a storage class
+# and expect its capacity shortly after would race with it.
+# $1 - namespace the driver publishes capacity in
+# $2 - storage class name
+function wait-for-storage-capacity {
+    local capacities
+    for i in {1..60}; do
+        capacities="$( kubectl -n="${1}" get csistoragecapacities.storage.k8s.io -o=go-template='{{ range .items }}{{ if eq .storageClassName "'"${2}"'" }}{{ .metadata.name }}{{ end }}{{ end }}' || true )"
+        if [[ -n "${capacities}" ]]; then
+            return 0
+        fi
+        sleep 2
+    done
+
+    echo "timed out waiting for CSIStorageCapacity of storage class ${2} in namespace ${1}" > /dev/stderr
+    kubectl -n="${1}" get csistoragecapacities.storage.k8s.io > /dev/stderr
+    return 1
+}
+
 # $1 - namespace
 # $2 - pod name
 # $3 - container name
