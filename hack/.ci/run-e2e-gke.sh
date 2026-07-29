@@ -47,6 +47,10 @@ timeout -v 10m ./hack/ci-deploy.sh "${E2E_IMAGE}"
 kubectl -n=local-csi-driver patch daemonset/local-csi-driver --type=json -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--loglevel=4"}]'
 kubectl -n=local-csi-driver rollout status daemonset/local-csi-driver
 
+# Patching the daemonset above restarted the provisioner, so wait until it published
+# capacity again before running any test.
+wait-for-storage-capacity local-csi-driver scylladb-local-xfs
+
 # Pre-create e2e namespace to be available to artifacts collection if something we to go wrong while deploying the stack.
 kubectl create namespace e2e --dry-run=client -o=yaml | kubectl_create -f=-
 kubectl create clusterrolebinding e2e --clusterrole=cluster-admin --serviceaccount=e2e:default --dry-run=client -o=yaml | kubectl_create -f=-
