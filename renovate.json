@@ -15,27 +15,41 @@
   ],
   "packageRules": [
     {
-      "description": "Dockerfile base images should be updated every weekday",
+      "description": "Container image references should be updated every weekday",
       "matchDatasources": [
         "docker"
-      ],
-      "matchFileNames": [
-        "images/**/Dockerfile"
       ],
       "schedule": [
         "before 5am every weekday"
       ]
+    },
+    {
+      "description": "csi-provisioner must stay on v5.x: v6.0.0 requires Kubernetes 1.34, above the minimum Kubernetes version supported by scylla-operator",
+      "matchDepNames": [
+        "csi-provisioner"
+      ],
+      "allowedVersions": "<6.0.0"
     }
   ],
   "customManagers": [
     {
       "description": "Custom manager for Dockerfile with Renovate annotations matching the regex.",
       "customType": "regex",
-      "fileMatch": [
-        "images/.*/Dockerfile"
+      "managerFilePatterns": [
+        "/^images/.*/Dockerfile$/"
       ],
       "matchStrings": [
         "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)(\\s+packageName=(?<packageName>\\S+))?(\\s+registryUrl=(?<registryUrl>\\S+))?(\\s+versioning=(?<versioning>\\S+))?\\s*\\nFROM\\s+\\S+:(?<currentValue>\\S+)"
+      ]
+    },
+    {
+      "description": "Custom manager for container image references in Kubernetes manifests with Renovate annotations matching the regex.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^deploy/kubernetes/local-csi-driver/50_daemonset\\.yaml$/"
+      ],
+      "matchStrings": [
+        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)(\\s+packageName=(?<packageName>\\S+))?(\\s+registryUrl=(?<registryUrl>\\S+))?(\\s+versioning=(?<versioning>\\S+))?\\s*\\n\\s*image:\\s*[^\\s:]+:(?<currentValue>[^@\"\\s]+)(?:@(?<currentDigest>sha256:[a-f0-9]+))?"
       ]
     }
   ]
