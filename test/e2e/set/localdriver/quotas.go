@@ -9,6 +9,7 @@ import (
 
 	g "github.com/onsi/ginkgo/v2"
 	o "github.com/onsi/gomega"
+	ginkgotest "github.com/scylladb/local-csi-driver/pkg/test/ginkgo"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeframework "k8s.io/kubernetes/test/e2e/framework"
@@ -24,7 +25,7 @@ const (
 	quota     = storageframework.MinFileSize
 )
 
-var _ = g.Describe("XFS Quotas", func() {
+var _ = g.Describe("XFS Quotas", ginkgotest.LocalCSIDriverLabel, func() {
 	defer g.GinkgoRecover()
 
 	d := &localCsiDriver{}

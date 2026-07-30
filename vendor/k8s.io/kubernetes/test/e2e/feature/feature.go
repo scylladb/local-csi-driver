@@ -99,9 +99,6 @@ var (
 	// Testing critical pod admission
 	CriticalPod = framework.WithFeature(framework.ValidFeatures.Add("CriticalPod"))
 
-	// TODO: document the feature (owning SIG, when to use this feature for a test)
-	CustomMetricsAutoscaling = framework.WithFeature(framework.ValidFeatures.Add("CustomMetricsAutoscaling"))
-
 	// OWNER: sig-node
 	// Testing device managers
 	DeviceManager = framework.WithFeature(framework.ValidFeatures.Add("DeviceManager"))
@@ -131,6 +128,10 @@ var (
 	// In addition, tests must be labeled with framework.WithFeatureGate to document
 	// their dependency on specific feature gates and the corresponding API groups.
 	DynamicResourceAllocation = framework.WithFeature(framework.ValidFeatures.Add("DynamicResourceAllocation"))
+
+	// Owner: sig-node
+	// EnvFiles is used for testing the EnvFiles feature (file-based environment variables).
+	EnvFiles = framework.WithFeature(framework.ValidFeatures.Add("EnvFiles"))
 
 	// TODO: document the feature (owning SIG, when to use this feature for a test)
 	EphemeralStorage = framework.WithFeature(framework.ValidFeatures.Add("EphemeralStorage"))
@@ -171,10 +172,6 @@ var (
 	GPUUpgrade = framework.WithFeature(framework.ValidFeatures.Add("GPUUpgrade"))
 
 	// OWNER: sig-node
-	// Testing garbage collection of images/containers
-	GarbageCollect = framework.WithFeature(framework.ValidFeatures.Add("GarbageCollect"))
-
-	// OWNER: sig-node
 	// Testing graceful node shutdown
 	GracefulNodeShutdown = framework.WithFeature(framework.ValidFeatures.Add("GracefulNodeShutdown"))
 
@@ -209,12 +206,17 @@ var (
 	// ImageVolume is used for testing the image volume source feature (https://kep.k8s.io/4639).
 	ImageVolume = framework.WithFeature(framework.ValidFeatures.Add("ImageVolume"))
 
+	// Owner: sig-node
+	// InPlacePodVerticalScaling is used for testing in-place pod vertical scaling (https://kep.k8s.io/1287).
+	InPlacePodVerticalScaling = framework.WithFeature(framework.ValidFeatures.Add("InPlacePodVerticalScaling"))
+
 	// Owner: sig-network
 	// Marks tests that require a conforming implementation of
 	// Ingress.networking.k8s.io to be present.
 	Ingress = framework.WithFeature(framework.ValidFeatures.Add("Ingress"))
 
-	// TODO: document the feature (owning SIG, when to use this feature for a test)
+	// Owner: sig-storage
+	// Marks tests that only work with a sigs.k8s.io/kind cluster
 	Kind = framework.WithFeature(framework.ValidFeatures.Add("Kind"))
 
 	// Owner: sig-network
@@ -309,7 +311,10 @@ var (
 	// TODO: document the feature (owning SIG, when to use this feature for a test)
 	NodeAuthorizer = framework.WithFeature(framework.ValidFeatures.Add("NodeAuthorizer"))
 
-	// TODO: document the feature (owning SIG, when to use this feature for a test)
+	// Owner: sig-windows, sig-node
+	// kep: https://kep.k8s.io/2271
+	// Marks tests that require the kubelet to have enableSystemLogQuery set to true
+	// in the kubelet configuration. This handler is off by default.
 	NodeLogQuery = framework.WithFeature(framework.ValidFeatures.Add("NodeLogQuery"))
 
 	// Owner: sig-node
@@ -328,7 +333,12 @@ var (
 	PodGarbageCollector = framework.WithFeature(framework.ValidFeatures.Add("PodGarbageCollector"))
 
 	// owner: sig-node
-	// Marks a test for for pod-level resources feature that requires
+	// Marks a test for pod-level resource managers feature that requires
+	// PodLevelResourceManagers feature gate to be enabled.
+	PodLevelResourceManagers = framework.WithFeature(framework.ValidFeatures.Add("PodLevelResourceManagers"))
+
+	// owner: sig-node
+	// Marks a test for pod-level resources feature that requires
 	// PodLevelResources feature gate to be enabled.
 	PodLevelResources = framework.WithFeature(framework.ValidFeatures.Add("PodLevelResources"))
 
@@ -336,10 +346,6 @@ var (
 	// Marks tests that require a cluster with PodLogsQuerySplitStreams
 	// (used for testing specific log stream <https://kep.k8s.io/3288>)
 	PodLogsQuerySplitStreams = framework.WithFeature(framework.ValidFeatures.Add("PodLogsQuerySplitStreams"))
-
-	// Owner: sig-node
-	// Marks tests that require a cluster with PodObservedGenerationTracking
-	PodObservedGenerationTracking = framework.WithFeature(framework.ValidFeatures.Add("PodObservedGenerationTracking"))
 
 	// TODO: document the feature (owning SIG, when to use this feature for a test)
 	PodPriority = framework.WithFeature(framework.ValidFeatures.Add("PodPriority"))
@@ -415,9 +421,14 @@ var (
 	// and the networking.k8s.io/v1alpha1 API.
 	ServiceCIDRs = framework.WithFeature(framework.ValidFeatures.Add("ServiceCIDRs"))
 
-	// Owner: sig-node
-	// Sidecar KEP-753
-	SidecarContainers = framework.WithFeature(framework.ValidFeatures.Add("SidecarContainers"))
+	// Owner: sig-storage
+	// KEP: https://kep.k8s.io/3314
+	// Tests marked with this feature require:
+	// - A CSI driver that supports the snapshot metadata service (e.g., CSI hostpath driver with --enable-snapshot-metadata)
+	// - The external-snapshot-metadata sidecar deployed alongside the CSI driver
+	// - The SnapshotMetadataService CRD (cbt.storage.k8s.io/v1beta1) installed
+	// - A storage driver that implements the CapSnapshotMetadata capability
+	SnapshotMetadata = framework.WithFeature(framework.ValidFeatures.Add("snapshotmetadata"))
 
 	// TODO: document the feature (owning SIG, when to use this feature for a test)
 	StackdriverAcceleratorMonitoring = framework.WithFeature(framework.ValidFeatures.Add("StackdriverAcceleratorMonitoring"))
@@ -452,12 +463,10 @@ var (
 	StorageVersionAPI = framework.WithFeature(framework.ValidFeatures.Add("StorageVersionAPI"))
 
 	// Owner: sig-node
-	// Marks tests that require a cluster with SupplementalGroupsPolicy
-	// (used for testing fine-grained SupplementalGroups control <https://kep.k8s.io/3619>)
+	// SupplementalGroupsPolicy is used for testing the SupplementalGroupsPolicy feature.
 	SupplementalGroupsPolicy = framework.WithFeature(framework.ValidFeatures.Add("SupplementalGroupsPolicy"))
 
-	// Added to test Swap Feature
-	// This label should be used when testing KEP-2400 (Node Swap Support)
+	// The Swap feature tests must run on nodes with the swap memory allocated and kubelet swap enabled. KEP-2400 (Node Swap Support)
 	Swap = framework.WithFeature(framework.ValidFeatures.Add("NodeSwap"))
 
 	SystemNodeCriticalPod = framework.WithFeature(framework.ValidFeatures.Add("SystemNodeCriticalPod"))
@@ -468,13 +477,14 @@ var (
 	// TODO: document the feature (owning SIG, when to use this feature for a test)
 	Upgrade = framework.WithFeature(framework.ValidFeatures.Add("Upgrade"))
 
-	// Owned by SIG Node
-	// Can be used when the UserNamespacesPodSecurityStandards kubelet feature
-	// gate is enabled to relax the application of Pod Security Standards in a
-	// controlled way.
-	UserNamespacesPodSecurityStandards = framework.WithFeature(framework.ValidFeatures.Add("UserNamespacesPodSecurityStandards"))
+	// Owner: sig-node
+	// Test marked with this feature must run on nodes where container runtime allows to pods with hostNetwork to use user namespaces.
+	// This feature can be removed once Containerd and CRI-O both added this support.
+	UserNamespacesHostNetworkSupport = framework.WithFeature(framework.ValidFeatures.Add("UserNamespacesHostNetworkSupport"))
 
-	// TODO: document the feature (owning SIG, when to use this feature for a test)
+	// UserNamespacesSupport is in test-infra nodes that have runtimes with user-namespaces
+	// support. It will be dropped after containerd 1.7 support is removed from CI.
+	// Owner: sig-node
 	UserNamespacesSupport = framework.WithFeature(framework.ValidFeatures.Add("UserNamespacesSupport"))
 
 	// TODO: document the feature (owning SIG, when to use this feature for a test)

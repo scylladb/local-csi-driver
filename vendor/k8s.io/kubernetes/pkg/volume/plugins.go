@@ -390,9 +390,6 @@ type VolumeHost interface {
 	// Get mounter interface.
 	GetMounter() mount.Interface
 
-	// Returns the hostname of the host kubelet is running on
-	GetHostName() string
-
 	// Returns node allocatable.
 	GetNodeAllocatable() (v1.ResourceList, error)
 
@@ -997,7 +994,7 @@ func NewPersistentVolumeRecyclerPodTemplate() *v1.Pod {
 			Containers: []v1.Container{
 				{
 					Name:    "pv-recycler",
-					Image:   "registry.k8s.io/build-image/debian-base:bookworm-v1.0.4",
+					Image:   "registry.k8s.io/build-image/debian-base:bookworm-v1.0.6",
 					Command: []string{"/bin/sh"},
 					Args:    []string{"-c", "test -e /scrub && find /scrub -mindepth 1 -delete && test -z \"$(ls -A /scrub)\" || exit 1"},
 					VolumeMounts: []v1.VolumeMount{

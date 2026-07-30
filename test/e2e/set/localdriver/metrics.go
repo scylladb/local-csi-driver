@@ -12,6 +12,7 @@ import (
 	g "github.com/onsi/ginkgo/v2"
 	o "github.com/onsi/gomega"
 	"github.com/prometheus/common/model"
+	ginkgotest "github.com/scylladb/local-csi-driver/pkg/test/ginkgo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeletmetrics "k8s.io/kubernetes/pkg/kubelet/metrics"
 	kubeframework "k8s.io/kubernetes/test/e2e/framework"
@@ -22,7 +23,7 @@ import (
 	admissionapi "k8s.io/pod-security-admission/api"
 )
 
-var _ = g.Describe("Metrics", func() {
+var _ = g.Describe("Metrics", ginkgotest.LocalCSIDriverLabel, func() {
 	defer g.GinkgoRecover()
 
 	d := &localCsiDriver{}

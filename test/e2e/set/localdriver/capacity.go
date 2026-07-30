@@ -11,6 +11,7 @@ import (
 	o "github.com/onsi/gomega"
 	"github.com/scylladb/local-csi-driver/pkg/driver"
 	"github.com/scylladb/local-csi-driver/pkg/driver/volume"
+	ginkgotest "github.com/scylladb/local-csi-driver/pkg/test/ginkgo"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -27,7 +28,7 @@ const (
 	capacityPollInterval = 30 * time.Second
 )
 
-var _ = g.Describe("Node Capacity", func() {
+var _ = g.Describe("Node Capacity", ginkgotest.LocalCSIDriverLabel, func() {
 	defer g.GinkgoRecover()
 
 	d := &localCsiDriver{}
