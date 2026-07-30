@@ -59,8 +59,8 @@ Please go through [CSI Spec](https://github.com/container-storage-interface/spec
 driver before you start.
 
 ### Requirements
-* Golang 1.18+
-* Kubernetes 1.24+
+* Golang 1.26+
+* Kubernetes 1.33 – 1.36
 
 ### Testing
 To execute all unit tests and e2e test suites run: `make test`
