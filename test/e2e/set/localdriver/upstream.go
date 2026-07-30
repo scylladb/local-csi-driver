@@ -7,6 +7,7 @@ import (
 
 	g "github.com/onsi/ginkgo/v2"
 	"github.com/scylladb/local-csi-driver/pkg/driver"
+	ginkgotest "github.com/scylladb/local-csi-driver/pkg/test/ginkgo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/storage/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -67,7 +68,7 @@ func (d *localCsiDriver) GetDynamicProvisionStorageClass(ctx context.Context, co
 
 var _ storageframework.DynamicPVTestDriver = &localCsiDriver{}
 
-var _ = g.Describe("CSI upstream", func() {
+var _ = g.Describe("CSI upstream", ginkgotest.LocalCSIDriverLabel, func() {
 	defer g.GinkgoRecover()
 
 	driver := &localCsiDriver{}

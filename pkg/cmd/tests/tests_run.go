@@ -41,12 +41,15 @@ const (
 	parallelServerAddressFlagKey = "parallel-server-address"
 )
 
+// All suites filter on ginkgotest.LocalCSIDriverLabelName to skip the specs that
+// upstream Kubernetes e2e packages register into our suite.
 var suites = ginkgotest.TestSuites{
 	{
 		Name: "all",
 		Description: templates.LongDesc(`
 		Runs all tests.
 		`),
+		LabelFilter:        ginkgotest.LocalCSIDriverLabelName,
 		DefaultParallelism: 30,
 	},
 	{
@@ -54,6 +57,7 @@ var suites = ginkgotest.TestSuites{
 		Description: templates.LongDesc(`
 		Run all tests in parallel.
 		`),
+		LabelFilter:        ginkgotest.LocalCSIDriverLabelName,
 		SkipStrings:        []string{"Disruptive", "Serial"},
 		DefaultParallelism: 30,
 	},
@@ -62,6 +66,7 @@ var suites = ginkgotest.TestSuites{
 		Description: templates.LongDesc(`
 		Run all serial tests.
 		`),
+		LabelFilter:        ginkgotest.LocalCSIDriverLabelName,
 		FocusStrings:       []string{"Serial"},
 		SkipStrings:        []string{"Disruptive"},
 		DefaultParallelism: 1,
@@ -71,6 +76,7 @@ var suites = ginkgotest.TestSuites{
 		Description: templates.LongDesc(`
 		Run all disruptive tests.
 		`),
+		LabelFilter:        ginkgotest.LocalCSIDriverLabelName,
 		FocusStrings:       []string{"Disruptive"},
 		DefaultParallelism: 1,
 	},
