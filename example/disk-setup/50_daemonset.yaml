@@ -18,7 +18,7 @@ spec:
       - operator: Exists
       containers:
       - name: xfs-disk-setup
-        image: docker.io/scylladb/local-csi-driver:latest
+        image: docker.io/scylladb/local-csi-driver:1.0
         imagePullPolicy: IfNotPresent
         command:
         - "/bin/bash"
