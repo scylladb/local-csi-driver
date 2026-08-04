@@ -1,5 +1,6 @@
 # Table of Contents
 
+- [1.0.1](#101)
 - [1.0.0](#100)
 - [Before 1.0.0](#versions-released-before-100)
 
@@ -7,6 +8,16 @@
 
 <!-- Group entries under: Highlights, Upgrade requirements, Deprecations, Features & Enhancements,
      Bug fixes, Other changes, Dependencies. Omit the sections that don't apply. -->
+
+## [1.0.1](https://github.com/scylladb/local-csi-driver/releases/tag/v1.0.1)
+
+Release date: 2026-08-04
+
+### Other changes
+
+- The `Dockerfile` now includes the `/licenses` directory and sets image labels explicitly, so it can be certified for
+  the Red Hat ecosystem catalog.
+  [#132](https://github.com/scylladb/local-csi-driver/pull/132)
 
 ## [1.0.0](https://github.com/scylladb/local-csi-driver/releases/tag/v1.0.0)
 
