@@ -6,7 +6,7 @@ COPY . .
 RUN make build --warn-undefined-variables GO_BUILD_PACKAGES=./cmd/local-csi-driver
 
 # renovate: datasource=docker depName=base-ubi-minimal packageName=quay.io/scylladb/scylla-operator-images versioning=regex:^base-ubi-(?<major>\d+)\.(?<minor>\d+)-minimal$
-FROM quay.io/scylladb/scylla-operator-images:base-ubi-9.7-minimal
+FROM quay.io/scylladb/scylla-operator-images:base-ubi-9.8-minimal
 SHELL ["/bin/bash", "-euEo", "pipefail", "-O", "inherit_errexit", "-c"]
 
 LABEL org.opencontainers.image.title="Local CSI Driver" \
