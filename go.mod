@@ -15,7 +15,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	golang.org/x/sync v0.22.0
 	golang.org/x/sys v0.47.0
-	google.golang.org/grpc v1.83.0
+	google.golang.org/grpc v1.83.1
 	google.golang.org/protobuf v1.36.12
 	k8s.io/api v0.36.3
 	k8s.io/apimachinery v0.36.3
@@ -23,7 +23,7 @@ require (
 	k8s.io/component-base v0.36.3
 	k8s.io/klog/v2 v2.140.0
 	k8s.io/kubectl v0.36.3
-	k8s.io/kubernetes v1.36.3
+	k8s.io/kubernetes v1.36.4
 	k8s.io/mount-utils v0.36.3
 	k8s.io/pod-security-admission v0.36.3
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
