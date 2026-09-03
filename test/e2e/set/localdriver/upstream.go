@@ -37,7 +37,7 @@ func (d *localCsiDriver) GetDriverInfo() *storageframework.DriverInfo {
 	}
 }
 
-func (d *localCsiDriver) SkipUnsupportedTest(pattern storageframework.TestPattern) {}
+func (d *localCsiDriver) SkipUnsupportedTest(pattern storageframework.TestPattern) string { return "" }
 
 func (d *localCsiDriver) PrepareTest(ctx context.Context, f *kubeframework.Framework) *storageframework.PerTestConfig {
 	return &storageframework.PerTestConfig{
