@@ -9,6 +9,11 @@
 <!-- Group entries under: Highlights, Upgrade requirements, Deprecations, Features & Enhancements,
      Bug fixes, Other changes, Dependencies. Omit the sections that don't apply. -->
 
+### Dependencies
+
+- Kubernetes dependencies were updated to 1.37.
+  [#140](https://github.com/scylladb/local-csi-driver/pull/140)
+
 ## [1.0.1](https://github.com/scylladb/local-csi-driver/releases/tag/v1.0.1)
 
 Release date: 2026-08-04
