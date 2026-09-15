@@ -28,7 +28,7 @@ jobs:
     name: build
     runs-on: ubuntu-latest
     container:
-      image: quay.io/scylladb/scylla-operator-images:golang-1.27
+      image: quay.io/scylladb/scylla-operator-images:golang-1.26
     timeout-minutes: 30
     steps:
       # GIT_TAG and GIT_TAG_SHORT run `git describe --tags` at Makefile parse time and error out when it fails, so
@@ -46,7 +46,7 @@ jobs:
     name: unit
     runs-on: ubuntu-latest
     container:
-      image: quay.io/scylladb/scylla-operator-images:golang-1.27
+      image: quay.io/scylladb/scylla-operator-images:golang-1.26
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -62,7 +62,7 @@ jobs:
     name: verify
     runs-on: ubuntu-latest
     container:
-      image: quay.io/scylladb/scylla-operator-images:golang-1.27
+      image: quay.io/scylladb/scylla-operator-images:golang-1.26
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -78,7 +78,7 @@ jobs:
     name: verify-deps
     runs-on: ubuntu-latest
     container:
-      image: quay.io/scylladb/scylla-operator-images:golang-1.27
+      image: quay.io/scylladb/scylla-operator-images:golang-1.26
     timeout-minutes: 30
     steps:
       - name: Checkout
