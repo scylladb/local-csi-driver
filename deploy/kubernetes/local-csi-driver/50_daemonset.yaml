@@ -69,7 +69,7 @@ spec:
           mountPath: /registration
       - name: liveness-probe
         # renovate: datasource=docker depName=livenessprobe packageName=registry.k8s.io/sig-storage/livenessprobe versioning=semver
-        image: registry.k8s.io/sig-storage/livenessprobe:v2.19.0@sha256:06da0d5b8908072f2e4522692aee8dc119fba7247a9658497e1153992cd777e9
+        image: registry.k8s.io/sig-storage/livenessprobe:v2.20.0@sha256:19f2cf2f40e1987c7943945deca5f65cd4e4bf5cc0657fc78a5df131861578e8
         imagePullPolicy: IfNotPresent
         args:
         - --csi-address=/csi/csi.sock
