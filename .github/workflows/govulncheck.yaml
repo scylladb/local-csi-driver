@@ -20,7 +20,21 @@ env:
   GIT_CONFIG_VALUE_0: "*"
 
 jobs:
+  branches:
+    runs-on: ubuntu-latest
+    outputs:
+      branches: ${{ steps.branches.outputs.branches }}
+    steps:
+      # A branch cut after the latest released minor gets scanned before it ships.
+      - id: branches
+        name: "Determine which branches to run on"
+        uses: scylladb/scylla-operator/.github/actions/supported-branches@3aa3beb0c9cff70b14bd3b3bf8dbd4b6ac7240c0 # master
+        with:
+          include-master: true
+          include-unreleased: true
+
   govulncheck:
+    needs: branches
     name: govulncheck (${{ matrix.branch }})
     runs-on: ubuntu-latest
     container:
@@ -29,10 +43,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        branch:
-          - master
-          - v0.5
-          - v1.0
+        branch: ${{ fromJSON(needs.branches.outputs.branches) }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
