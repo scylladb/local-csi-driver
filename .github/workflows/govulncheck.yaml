@@ -28,7 +28,7 @@ jobs:
       # A branch cut after the latest released minor gets scanned before it ships.
       - id: branches
         name: "Determine which branches to run on"
-        uses: scylladb/scylla-operator/.github/actions/supported-branches@3aa3beb0c9cff70b14bd3b3bf8dbd4b6ac7240c0 # master
+        uses: scylladb/scylla-operator/.github/actions/supported-branches@4b77336253edb1f54cd2879ae938226aa98b59fd # master
         with:
           include-master: true
           include-unreleased: true
