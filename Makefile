@@ -53,6 +53,8 @@ define version-ldflags
 endef
 GO_LD_FLAGS ?=-ldflags '$(strip $(call version-ldflags,$(GO_PACKAGE)/pkg/version) $(GO_LD_EXTRA_FLAGS))'
 
+RENOVATE_CONFIG ?=./renovate.json
+
 # $1 - required version
 # $2 - current version
 define is_equal_or_higher_version
@@ -118,6 +120,10 @@ update-k8sio-gomod-replace:
 	./hack/update-k8sio-gomod-replace.sh
 .PHONY: update-k8sio-gomod-replace
 
+update-renovate-config:
+	./hack/sync-renovate-config-with-go-mod-replace.sh $(RENOVATE_CONFIG)
+.PHONY: update-renovate-config
+
 # We need to force locale so different envs sort files the same way for recursive traversals
 diff :=LC_COLLATE=C diff --no-dereference -N
 
@@ -158,10 +164,17 @@ verify-links:
 	fi;
 .PHONY: verify-links
 
-verify: verify-gofmt
+verify-renovate-config: tmp_dir :=$(shell mktemp -d)
+verify-renovate-config:
+	cp $(RENOVATE_CONFIG) "$(tmp_dir)/renovate.json"
+	./hack/sync-renovate-config-with-go-mod-replace.sh "$(tmp_dir)/renovate.json"
+	$(diff) "$(tmp_dir)/renovate.json" $(RENOVATE_CONFIG) || (echo 'Renovate config is not up-to date. Please run `make update-renovate-config` to update it.' && false)
+.PHONY: verify-renovate-config
+
+verify: verify-gofmt verify-renovate-config
 .PHONY: verify
 
-update: update-gofmt
+update: update-gofmt update-renovate-config
 .PHONY: update
 
 test-sanity:
