@@ -1856,7 +1856,7 @@ k8s.io/kubelet/pkg/apis/podresources/v1alpha1
 k8s.io/kubelet/pkg/apis/pods/v1alpha1
 k8s.io/kubelet/pkg/apis/stats/v1alpha1
 k8s.io/kubelet/pkg/types
-# k8s.io/kubernetes v1.37.0
+# k8s.io/kubernetes v1.37.2
 ## explicit; go 1.26.0
 k8s.io/kubernetes/cmd/kubectl
 k8s.io/kubernetes/pkg/api/legacyscheme
