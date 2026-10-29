@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   ci:
-    uses: ./.github/workflows/ci-jobs.yaml
+    uses: ./.github/workflows/_checks.yaml
 
   # The merge automation gates on a fixed set of contexts it is configured with, so individual GitHub Actions
   # checks are invisible to it. This aggregate is the single context it can be told to require, which keeps
