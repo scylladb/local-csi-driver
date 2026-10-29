@@ -1,0 +1,185 @@
+name: Release
+
+# Releases the dispatched ref as the given version. Builds the images, gates the driver image on the e2e suites, pushes
+# the version tag, publishes the driver image to the production repositories, creates the GitHub release and submits the
+# image for certification, in that order: the tag is the output of the gate, not its trigger, and nothing is published for
+# a version without one. Lives on every release branch and is dispatched on the branch being released.
+#
+# Version tags are immutable, so a release that failed after its tag is finished by dispatching it again with the same
+# version. The tag records the image the gate tested, and the run publishes that image instead of building and gating
+# a new one, whose digest would differ. The publishing steps are safe to repeat. A redispatch can run from any ref,
+# master included, so a fix to the workflow applies to an existing tag: the ref only supplies the workflow, and
+# everything published comes from the tag. A job that publishes files from the repository after the tag has to check
+# out the tag rather than `github.sha`.
+#
+# `allow-any-ref` allows creating the tag on a ref other than the release branch of the version's minor, e.g. to release
+# an alpha from master. A regular release generally shouldn't set it.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release, without the `v` prefix, e.g. `1.1.0` or `1.1.0-rc.0`.
+        required: true
+        type: string
+      allow-any-ref:
+        description: Allow creating the tag on a ref other than the release branch of the version's minor. A regular release generally shouldn't set it.
+        type: boolean
+        default: false
+
+# One release at a time across all branches. Which rolling tags a version gets depends on the tags released before
+# it, so two releases in flight could both decide they're the latest. GitHub keeps one more run pending, so a third
+# dispatch cancels the pending one rather than queueing behind it.
+concurrency:
+  group: ${{ github.workflow }}
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+env:
+  # Repository the tested image is pushed to, and the one a redispatch copies it from. The tag records only the digest,
+  # which is the same in every repository the image is copied to.
+  DEV_IMAGE_REPO_REF: &dev-image-repo-ref quay.io/scylladb-dev/ci
+
+jobs:
+  # Rejects a malformed version before anything is built or tested, finds the image a version that already has its tag
+  # was tested with, and decides which rolling tags the image gets and whether the GitHub release is marked latest.
+  plan-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.plan.outputs.tag }}
+      prerelease: ${{ steps.plan.outputs.prerelease }}
+      tag-exists: ${{ steps.plan.outputs.tag-exists }}
+      image-ref: ${{ steps.plan.outputs.image-ref }}
+      rolling-tags: ${{ steps.plan.outputs.rolling-tags }}
+      latest: ${{ steps.plan.outputs.latest }}
+    steps:
+    - name: Plan the release
+      id: plan
+      uses: scylladb/scylla-operator/.github/actions/release/plan@b309bb70a9731a20b74a2bf69e2f8100df96c80e # TODO: repin to master once scylladb/scylla-operator#3814 merges
+      with:
+        version: ${{ inputs.version }}
+        allow-any-ref: ${{ inputs.allow-any-ref }}
+        dev-image-repo-ref: ${{ env.DEV_IMAGE_REPO_REF }}
+
+  # A version that already has its tag passed the gate, so the run skips straight to publishing what the tag records.
+  # Skipping the image skips everything up to the tag with it.
+  image:
+    needs: plan-release
+    if: needs.plan-release.outputs.tag-exists == 'false'
+    uses: ./.github/workflows/_image.yaml
+    with:
+      image-repo-ref: *dev-image-repo-ref
+      image-tag: ${{ github.run_id }}
+    secrets:
+      registry-auth-json: ${{ secrets.QUAY_SCYLLADB_DEV_PR_PUBLISHER_CREDS }}
+
+  e2e:
+    needs: image
+    uses: ./.github/workflows/_e2e-jobs.yaml
+    with:
+      image-ref: ${{ needs.image.outputs.image-ref }}
+      tests-image-ref: ${{ needs.image.outputs.tests-image-ref }}
+    secrets:
+      ci-provisioners-kubeconfig: ${{ secrets.CI_PROVISIONERS_KUBECONFIG }}
+
+  # Checks the image against Red Hat's certification requirements ahead of a release, without submitting the results.
+  image-preflight:
+    needs: image
+    uses: ./.github/workflows/_image-preflight.yaml
+    with:
+      image-repo-ref: *dev-image-repo-ref
+      # The tag the image job pushes the driver image under. One of the checks requires a tag.
+      image-tag: local-csi-driver-${{ github.run_id }}
+    secrets:
+      pyxis-api-token: ${{ secrets.CERTIFICATION_PYXIS_API_KEY }}
+
+  tag:
+    needs:
+    - plan-release
+    - image
+    - e2e
+    - image-preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+    - name: Push the tag
+      uses: scylladb/scylla-operator/.github/actions/release/push-tag@b309bb70a9731a20b74a2bf69e2f8100df96c80e # TODO: repin to master once scylladb/scylla-operator#3814 merges
+      with:
+        tag: ${{ needs.plan-release.outputs.tag }}
+        image-ref: ${{ needs.image.outputs.image-ref }}
+
+  # Copies the image the gate ran against, so what was tested is what ships. Runs on a redispatch too, where the jobs
+  # it needs are skipped.
+  promote:
+    needs:
+    - plan-release
+    - image
+    - tag
+    if: ${{ !cancelled() && !failure() && (needs.plan-release.outputs.tag-exists == 'true' || needs.tag.result == 'success') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image-repo-ref:
+        - quay.io/scylladb/local-csi-driver
+        - docker.io/scylladb/local-csi-driver
+    name: promote (${{ matrix.image-repo-ref }})
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/scylladb/scylla-operator-images:kube-tools
+    timeout-minutes: 30
+    steps:
+    - name: Write registry auth
+      uses: scylladb/scylla-operator/.github/actions/write-registry-auth@b309bb70a9731a20b74a2bf69e2f8100df96c80e # TODO: repin to master once scylladb/scylla-operator#3814 merges
+      with:
+        auth-json: |
+          ${{ secrets.QUAY_SCYLLADB_PROD_PUBLISHER_CREDS }}
+          ${{ secrets.DOCKERHUB_SCYLLADB_PROD_PUBLISHER_CREDS }}
+
+    - name: Copy the image
+      uses: scylladb/scylla-operator/.github/actions/release/promote-image@b309bb70a9731a20b74a2bf69e2f8100df96c80e # TODO: repin to master once scylladb/scylla-operator#3814 merges
+      with:
+        source-image-ref: ${{ needs.image.outputs.image-ref || needs.plan-release.outputs.image-ref }}
+        image-repo-ref: ${{ matrix.image-repo-ref }}
+        version: ${{ inputs.version }}
+        rolling-tags: ${{ needs.plan-release.outputs.rolling-tags }}
+
+  # Submits the preflight results of the published image to its Red Hat certification component.
+  certify-image:
+    needs:
+    - plan-release
+    - promote
+    if: ${{ !cancelled() && !failure() && needs.promote.result == 'success' }}
+    uses: ./.github/workflows/_image-preflight.yaml
+    with:
+      image-repo-ref: docker.io/scylladb/local-csi-driver
+      image-tag: ${{ inputs.version }}
+      submit: true
+    secrets:
+      pyxis-api-token: ${{ secrets.CERTIFICATION_PYXIS_API_KEY }}
+
+  # Without a condition of its own, a job runs only if every job before it succeeded, and a redispatch skips some.
+  github-release:
+    needs:
+    - plan-release
+    - promote
+    if: ${{ !cancelled() && !failure() && needs.promote.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+    - name: Create the release
+      uses: scylladb/scylla-operator/.github/actions/release/create-github-release@b309bb70a9731a20b74a2bf69e2f8100df96c80e # TODO: repin to master once scylladb/scylla-operator#3814 merges
+      with:
+        version: ${{ inputs.version }}
+        tag: ${{ needs.plan-release.outputs.tag }}
+        prerelease: ${{ needs.plan-release.outputs.prerelease }}
+        latest: ${{ needs.plan-release.outputs.latest }}
+        image-repo-ref: docker.io/scylladb/local-csi-driver

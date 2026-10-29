@@ -1,4 +1,4 @@
-name: CI jobs
+name: Checks
 
 on:
   workflow_call:
@@ -90,3 +90,20 @@ jobs:
       - name: Verify dependencies
         run: make --warn-undefined-variables verify-deps
 
+  sanity:
+    name: sanity
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/scylladb/scylla-operator-images:golang-1.27
+      # With the default listen backlog, the sanity suite's connections to the driver's unix socket time out.
+      options: --sysctl net.core.somaxconn=4096
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Run sanity tests
+        run: make --warn-undefined-variables test-sanity

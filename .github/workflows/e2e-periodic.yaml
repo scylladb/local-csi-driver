@@ -1,0 +1,38 @@
+name: "E2E (periodic)"
+
+# Builds the images from the ref under test and runs the e2e suites against them in the same run.
+on:
+  schedule:
+  - cron: '0 6 * * MON'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    uses: ./.github/workflows/_image.yaml
+    with:
+      image-tag: ${{ github.run_id }}
+    secrets:
+      registry-auth-json: ${{ secrets.QUAY_SCYLLADB_DEV_PR_PUBLISHER_CREDS }}
+
+  e2e:
+    needs: image
+    uses: ./.github/workflows/_e2e-jobs.yaml
+    with:
+      image-ref: ${{ needs.image.outputs.image-ref }}
+      tests-image-ref: ${{ needs.image.outputs.tests-image-ref }}
+    secrets:
+      ci-provisioners-kubeconfig: ${{ secrets.CI_PROVISIONERS_KUBECONFIG }}
+
+  report-failure:
+    needs: e2e
+    if: ${{ failure() && github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - name: Report the failure to Slack
+      uses: scylladb/scylla-operator/.github/actions/report-failure-to-slack@8622d9636308f9f9e4fb778ed2c73db1ea4dfb42 # master
+      with:
+        webhook-url: ${{ secrets.SLACK_TEAM_OPERATOR_CI_WEBHOOK_URL }}

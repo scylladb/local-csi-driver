@@ -1,0 +1,49 @@
+name: "Image preflight"
+
+# Runs the Red Hat certification preflight checks for an image against the driver's certification component and,
+# when asked to, submits the results. Preflight checks every platform of a manifest list.
+on:
+  workflow_call:
+    inputs:
+      image-repo-ref:
+        description: Repository of the image to check.
+        required: true
+        type: string
+      image-tag:
+        description: Tag of the image to check. Pyxis records it with the results.
+        required: true
+        type: string
+      submit:
+        description: Whether to submit the results to Red Hat.
+        required: false
+        default: false
+        type: boolean
+    secrets:
+      pyxis-api-token:
+        description: Red Hat Container API key. It selects the component's policy and, with submit, submits the results.
+        required: true
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    name: preflight
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/scylladb/scylla-operator-images:kube-tools
+    timeout-minutes: 15
+    steps:
+    - name: Run preflight
+      uses: scylladb/scylla-operator/.github/actions/certify-image@b309bb70a9731a20b74a2bf69e2f8100df96c80e # TODO: repin to master once scylladb/scylla-operator#3814 merges
+      with:
+        image-repo-ref: ${{ inputs.image-repo-ref }}
+        image-tag: ${{ inputs.image-tag }}
+        # The "local-csi-driver" image component in Red Hat Partner Connect.
+        component-id: 6a71eebc7d101f16e91fac1b
+        submit: ${{ inputs.submit }}
+        pyxis-api-token: ${{ secrets.pyxis-api-token }}
