@@ -1,0 +1,93 @@
+name: E2E jobs
+
+# Every e2e job, defined once for all the workflows that run them. Runs the selected jobs against the caller's images.
+# The callers select the jobs by their ids.
+on:
+  workflow_call:
+    inputs:
+      image-ref:
+        description: Digest-pinned reference to the driver image to test, as `_image.yaml` outputs it.
+        required: true
+        type: string
+      tests-image-ref:
+        description: Digest-pinned reference to the tests image, as `_image.yaml` outputs it.
+        required: true
+        type: string
+      jobs:
+        description: >-
+          JSON list of glob patterns matching the ids of the jobs to run, e.g. `["gke-parallel"]`, or `["!gke-serial"]`
+          for every job but that one, as `hack/.ci/select-jobs.sh` matches them. Runs every job when omitted.
+        required: false
+        type: string
+    secrets:
+      ci-provisioners-kubeconfig:
+        description: Kubeconfig of the cluster to create the CI provisioning objects in.
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  # A matrix creates checks only for the jobs selected, where jobs gated by `if` would all show up, the unselected ones
+  # as skipped. Every entry carries every input of the workflow it calls, because a key missing from an entry passes an
+  # empty value rather than the input's default, so the defaults below have to match those of the workflow it calls.
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      gke: ${{ steps.plan.outputs.gke }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - id: plan
+      shell: bash
+      env:
+        JOBS: ${{ inputs.jobs }}
+      run: |
+        set -euExo pipefail
+        shopt -s inherit_errexit
+
+        gke_defaults='{
+          "cluster-manifest": "./hack/.ci/manifests/ci-clusters/gke.yaml"
+        }'
+        gke='[
+          {
+            "id": "parallel",
+            "suite": "conformance/parallel"
+          },
+          {
+            "id": "serial",
+            "suite": "conformance/serial"
+          }
+        ]'
+
+        # Each id is prefixed with the platform it runs on, e.g. `gke-parallel`.
+        gke="$( jq -c 'map(.id = "gke-\(.id)")' <<< "${gke}" )"
+
+        mapfile -t ids < <( jq -r '.[].id' <<< "${gke}" )
+        SELECTED="$( ./hack/.ci/select-jobs.sh "${JOBS:-[\"*\"]}" "${ids[@]}" )"
+        export SELECTED
+        select='(env.SELECTED | fromjson) as $jobs | map(select(.id | IN($jobs[])))'
+        echo "gke=$( jq -c --argjson defaults "${gke_defaults}" "${select} | map(\$defaults + .)" <<< "${gke}" )" >> "${GITHUB_OUTPUT}"
+
+  gke:
+    needs: plan
+    # An empty matrix is an error.
+    if: needs.plan.outputs.gke != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.gke) }}
+    # Referencing the matrix keeps GitHub from appending its values to the name.
+    name: ${{ format('gke', matrix.id) }}
+    uses: ./.github/workflows/_e2e-gke.yaml
+    with:
+      name: ${{ matrix.id }}
+      image-ref: ${{ inputs.image-ref }}
+      tests-image-ref: ${{ inputs.tests-image-ref }}
+      suite: ${{ matrix.suite }}
+      cluster-manifest: ${{ matrix.cluster-manifest }}
+    secrets:
+      ci-provisioners-kubeconfig: ${{ secrets.ci-provisioners-kubeconfig }}

@@ -1,0 +1,104 @@
+name: "E2E: GKE"
+
+# Runs one e2e suite against a GKE cluster it creates for the run and deletes afterwards.
+on:
+  workflow_call:
+    inputs:
+      name:
+        description: Short slug identifying this run. Used for the job name, the provisioned objects and the artifact name.
+        required: true
+        type: string
+      image-ref:
+        description: Reference of the driver image to test, as `_image.yaml` outputs it.
+        required: true
+        type: string
+      tests-image-ref:
+        description: Reference of the tests image to run the suite from, as `_image.yaml` outputs it.
+        required: true
+        type: string
+      suite:
+        description: Name of the `local-csi-driver-tests` suite to run, e.g. `conformance/parallel`.
+        required: true
+        type: string
+      cluster-manifest:
+        description: KubernetesCluster to provision the suite against.
+        required: false
+        default: ./hack/.ci/manifests/ci-clusters/gke.yaml
+        type: string
+    secrets:
+      ci-provisioners-kubeconfig:
+        description: Kubeconfig of the cluster to create the KubernetesCluster object in.
+        required: true
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: ${{ inputs.name }}
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/scylladb/scylla-operator-images:kube-tools
+    timeout-minutes: 180
+    env:
+      OBJECT_NAME: lcd-${{ inputs.name }}-${{ github.run_id }}-${{ github.run_attempt }}
+      ARTIFACTS: ${{ github.workspace }}/artifacts
+    steps:
+    - name: Checkout
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Materialize the CI provisioners kubeconfig
+      id: provisioners
+      uses: scylladb/scylla-operator/.github/actions/materialize-secret@bac4b54a744a40211b9dfab3ea9b12c1401726eb # master
+      with:
+        name: ci-provisioners-kubeconfig
+        content: ${{ secrets.ci-provisioners-kubeconfig }}
+
+    # This workflow names every object it creates OBJECT_NAME, so the cleanup can run unconditionally from here on,
+    # including when provisioning itself fails partway.
+    - name: Provision the cluster
+      id: cluster
+      uses: scylladb/scylla-operator/.github/actions/ci-provisioning/gke/provision-clusters@adf54ca31acc452e8e63edc9a82cfc041eb7cdb1 # TODO: repin to master once scylladb/scylla-operator#3810 merges
+      with:
+        provisioners-kubeconfig: ${{ steps.provisioners.outputs.path }}
+        name: ${{ env.OBJECT_NAME }}
+        manifest: ${{ inputs.cluster-manifest }}
+
+    - name: Run the e2e suite
+      env:
+        KUBECONFIGS: ${{ steps.cluster.outputs.kubeconfigs }}
+        E2E_IMAGE: ${{ inputs.image-ref }}
+        E2E_TESTS_IMAGE: ${{ inputs.tests-image-ref }}
+        E2E_SUITE: ${{ inputs.suite }}
+      run: |
+        set -euExo pipefail
+        shopt -s inherit_errexit
+
+        mkdir -p "${ARTIFACTS}"
+
+        # A single cluster is keyed `default`.
+        export KUBECONFIG="${KUBECONFIGS#default=}"
+
+        # INT first so the suite can shut down and the run script still gathers the artifacts; SIGKILL follows 10
+        # minutes later.
+        timeout --verbose --signal=INT --kill-after=10m 120m ./hack/.ci/run-e2e-gke.sh
+
+    - name: Pack and upload artifacts
+      if: always()
+      uses: scylladb/scylla-operator/.github/actions/pack-and-upload-artifacts@bac4b54a744a40211b9dfab3ea9b12c1401726eb # master
+      with:
+        name: artifacts-${{ inputs.name }}-${{ github.run_attempt }}
+        directory: ${{ env.ARTIFACTS }}
+
+    - name: Clean up the cluster
+      if: always()
+      uses: scylladb/scylla-operator/.github/actions/ci-provisioning/gke/cleanup-clusters@bac4b54a744a40211b9dfab3ea9b12c1401726eb # master
+      with:
+        provisioners-kubeconfig: ${{ steps.provisioners.outputs.path }}
+        object-name: ${{ env.OBJECT_NAME }}
