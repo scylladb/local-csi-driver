@@ -1,0 +1,111 @@
+name: Image
+
+# Builds the driver and tests images from the checked out ref, natively on amd64 and arm64 runners, and publishes each
+# as a manifest list tagged `<image>-<image-tag>`. Outputs digest-pinned references to them.
+on:
+  workflow_call:
+    inputs:
+      image-repo-ref:
+        description: Repository to publish the images to.
+        required: false
+        type: string
+        default: quay.io/scylladb-dev/ci
+      image-tag:
+        description: Suffix of the tags to publish the manifest lists under, each prefixed with the image name.
+        required: true
+        type: string
+    outputs:
+      image-ref:
+        description: Digest-pinned reference to the published driver manifest list.
+        value: ${{ jobs.manifest.outputs.image-ref }}
+      tests-image-ref:
+        description: Digest-pinned reference to the published tests manifest list.
+        value: ${{ jobs.manifest.outputs.tests-image-ref }}
+    secrets:
+      registry-auth-json:
+        description: Contents of a containers-auth.json(5) file with push access to the target repository.
+        required: true
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_REPO_REF: ${{ inputs.image-repo-ref }}
+
+jobs:
+  # Each leg pushes its image by digest only and hands the digest over to the manifest job as an artifact, following
+  # https://docs.docker.com/build/ci/github-actions/multi-platform/#distribute-build-across-multiple-runners.
+  build:
+    name: build (${{ matrix.image }}, ${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+        - local-csi-driver
+        - local-csi-driver-tests
+        arch:
+        - amd64
+        - arm64
+        include:
+        - arch: amd64
+          runner: ubuntu-latest
+        - arch: arm64
+          runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+    # The build runs `git describe --tags` at Makefile parse time and errors out when it fails, so the tags have to be
+    # in the build context. A default shallow checkout fetches none.
+    - name: Checkout
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+
+    - name: Write registry auth
+      uses: scylladb/scylla-operator/.github/actions/write-registry-auth@b309bb70a9731a20b74a2bf69e2f8100df96c80e # TODO: repin to master once scylladb/scylla-operator#3814 merges
+      with:
+        auth-json: ${{ secrets.registry-auth-json }}
+
+    - name: Build the image
+      uses: scylladb/scylla-operator/.github/actions/build-image@b309bb70a9731a20b74a2bf69e2f8100df96c80e # TODO: repin to master once scylladb/scylla-operator#3814 merges
+      with:
+        image-repo-ref: ${{ env.IMAGE_REPO_REF }}
+        file: ./images/${{ matrix.image }}/Dockerfile
+        arch: ${{ matrix.arch }}
+        cache-scope: ${{ matrix.image }}-${{ matrix.arch }}
+        digest-artifact-name: ${{ matrix.image }}-digest-${{ matrix.arch }}
+
+  manifest:
+    name: manifest
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      image-ref: ${{ steps.driver.outputs.image-ref }}
+      tests-image-ref: ${{ steps.tests.outputs.image-ref }}
+    steps:
+    - name: Write registry auth
+      uses: scylladb/scylla-operator/.github/actions/write-registry-auth@b309bb70a9731a20b74a2bf69e2f8100df96c80e # TODO: repin to master once scylladb/scylla-operator#3814 merges
+      with:
+        auth-json: ${{ secrets.registry-auth-json }}
+
+    - name: Create the driver manifest list
+      id: driver
+      uses: scylladb/scylla-operator/.github/actions/create-manifest-list@b309bb70a9731a20b74a2bf69e2f8100df96c80e # TODO: repin to master once scylladb/scylla-operator#3814 merges
+      with:
+        image-repo-ref: ${{ env.IMAGE_REPO_REF }}
+        image-tag: local-csi-driver-${{ inputs.image-tag }}
+        digest-artifact-pattern: local-csi-driver-digest-*
+
+    - name: Create the tests manifest list
+      id: tests
+      uses: scylladb/scylla-operator/.github/actions/create-manifest-list@b309bb70a9731a20b74a2bf69e2f8100df96c80e # TODO: repin to master once scylladb/scylla-operator#3814 merges
+      with:
+        image-repo-ref: ${{ env.IMAGE_REPO_REF }}
+        image-tag: local-csi-driver-tests-${{ inputs.image-tag }}
+        digest-artifact-pattern: local-csi-driver-tests-digest-*
