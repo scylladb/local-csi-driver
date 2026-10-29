@@ -69,3 +69,14 @@ jobs:
           GOVULNCHECK_GH_BOT_GITHUB_ISSUES_REPO: scylladb/scylla-operator-team
           GOVULNCHECK_GH_BOT_GITHUB_VULNERABILITY_ISSUE_LABEL: kind/vulnerability
           GOVULNCHECK_GH_BOT_SILENCED_VULNERABILITY_GITHUB_ISSUE_LABEL: vulnerability/silenced
+
+  report-failure:
+    needs: govulncheck
+    if: ${{ failure() && github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Report the failure to Slack
+        uses: scylladb/scylla-operator/.github/actions/report-failure-to-slack@8622d9636308f9f9e4fb778ed2c73db1ea4dfb42 # master
+        with:
+          webhook-url: ${{ secrets.SLACK_TEAM_OPERATOR_CI_WEBHOOK_URL }}
