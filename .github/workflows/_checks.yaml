@@ -26,7 +26,7 @@ env:
 jobs:
   build:
     name: build
-    runs-on: ubuntu-latest
+    runs-on: hosted-runners-standard-pool-local-csi-driver
     container:
       image: quay.io/scylladb/scylla-operator-images:golang-1.26
     timeout-minutes: 30
@@ -44,7 +44,7 @@ jobs:
 
   unit:
     name: unit
-    runs-on: ubuntu-latest
+    runs-on: hosted-runners-standard-pool-local-csi-driver
     container:
       image: quay.io/scylladb/scylla-operator-images:golang-1.26
     timeout-minutes: 30
@@ -60,7 +60,7 @@ jobs:
 
   verify:
     name: verify
-    runs-on: ubuntu-latest
+    runs-on: hosted-runners-standard-pool-local-csi-driver
     container:
       image: quay.io/scylladb/scylla-operator-images:golang-1.26
     timeout-minutes: 30
@@ -76,7 +76,7 @@ jobs:
 
   verify-deps:
     name: verify-deps
-    runs-on: ubuntu-latest
+    runs-on: hosted-runners-standard-pool-local-csi-driver
     container:
       image: quay.io/scylladb/scylla-operator-images:golang-1.26
     timeout-minutes: 30
