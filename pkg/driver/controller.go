@@ -145,9 +145,13 @@ func (d *driver) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest)
 	}
 
 	d.mut.Lock()
-	defer d.mut.Unlock()
-
 	err := d.volumeManager.DeleteVolume(volID)
+	d.mut.Unlock()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to delete volume: %v", err)
+	}
+
+	err = d.volumeManager.CleanupVolumeDir(volID)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to delete volume: %v", err)
 	}

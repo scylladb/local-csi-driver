@@ -196,7 +196,28 @@ func (v *VolumeManager) ExpandVolume(volID string, newSize int64) (int64, error)
 
 func (v *VolumeManager) DeleteVolume(volID string) error {
 	vs := v.state.GetVolumeStateByID(volID)
+	if vs == nil {
+		return nil
+	}
 
+	err := v.limiter.RemoveLimit(vs.LimitID)
+	if err != nil {
+		return fmt.Errorf("can't delete limit of volume %q: %w", volID, err)
+	}
+	klog.V(2).InfoS("Removed limit", "limitID", vs.LimitID)
+
+	err = v.state.DeleteVolumeState(volID)
+	if err != nil {
+		return fmt.Errorf("can't delete state of volume %q: %w", volID, err)
+	}
+	klog.V(2).InfoS("Removed volume state file", "volume", volID)
+
+	return nil
+}
+
+// CleanupVolumeDir removes the volume contents from disk. Removing a big tree can take long,
+// so callers must not hold locks while running it.
+func (v *VolumeManager) CleanupVolumeDir(volID string) error {
 	path := v.getVolumePath(volID)
 	err := os.RemoveAll(path)
 	if err != nil && !os.IsNotExist(err) {
@@ -205,20 +226,6 @@ func (v *VolumeManager) DeleteVolume(volID string) error {
 	if err == nil {
 		klog.V(2).InfoS("Removed volume directory", "volume", volID, "path", path)
 	}
-
-	if vs != nil {
-		err = v.limiter.RemoveLimit(vs.LimitID)
-		if err != nil {
-			return fmt.Errorf("can't delete state of volume %q: %w", volID, err)
-		}
-		klog.V(2).InfoS("Removed limit", "limitID", vs.LimitID)
-	}
-
-	err = v.state.DeleteVolumeState(volID)
-	if err != nil {
-		return fmt.Errorf("can't delete state of volume %q: %w", volID, err)
-	}
-	klog.V(2).InfoS("Removed volume state file", "volume", volID)
 
 	return nil
 }
