@@ -144,6 +144,9 @@ func (d *driver) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest)
 		return nil, status.Error(codes.InvalidArgument, "Volume ID not provided")
 	}
 
+	d.mut.Lock()
+	defer d.mut.Unlock()
+
 	err := d.volumeManager.DeleteVolume(volID)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to delete volume: %v", err)
