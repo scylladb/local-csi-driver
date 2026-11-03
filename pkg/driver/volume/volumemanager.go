@@ -3,6 +3,7 @@
 package volume
 
 import (
+	stderrors "errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -60,6 +61,11 @@ func NewVolumeManager(volumesDir string, sm *StateManager, options ...VolumeMana
 
 	return v, nil
 }
+
+var (
+	ErrVolumeNotFound       = stderrors.New("volume not found")
+	ErrInsufficientCapacity = stderrors.New("insufficient capacity")
+)
 
 func (v *VolumeManager) CreateVolume(volID, name string, capacity int64, volAccessType AccessType) error {
 	availableCapacity, err := v.GetAvailableCapacity()
@@ -146,6 +152,47 @@ func (v *VolumeManager) CreateVolume(volID, name string, capacity int64, volAcce
 	}
 
 	return nil
+}
+
+func (v *VolumeManager) ExpandVolume(volID string, newSize int64) (int64, error) {
+	vs := v.state.GetVolumeStateByID(volID)
+	if vs == nil {
+		return 0, ErrVolumeNotFound
+	}
+
+	oldSize := vs.Size
+	if newSize <= oldSize {
+		return oldSize, nil
+	}
+
+	availableCapacity, err := v.GetAvailableCapacity()
+	if err != nil {
+		return 0, fmt.Errorf("can't check available capacity: %w", err)
+	}
+	availableCapacity += MetadataFileMaxSize
+
+	if delta := newSize - oldSize; delta > availableCapacity {
+		return 0, fmt.Errorf("%w: requested additional %dB, available %dB", ErrInsufficientCapacity, delta, availableCapacity)
+	}
+
+	err = v.limiter.SetLimit(vs.LimitID, newSize)
+	if err != nil {
+		return 0, fmt.Errorf("can't set new limit: %w", err)
+	}
+
+	err = v.state.UpdateVolumeSize(volID, newSize)
+	if err != nil {
+		errs := []error{fmt.Errorf("can't save volume state: %w", err)}
+		rollbackErr := v.limiter.SetLimit(vs.LimitID, oldSize)
+		if rollbackErr != nil {
+			errs = append(errs, fmt.Errorf("can't roll back limit: %w", rollbackErr))
+		}
+		return 0, errors.NewAggregate(errs)
+	}
+
+	klog.V(2).InfoS("Volume expanded", "volume", volID, "oldSize", oldSize, "newSize", newSize)
+
+	return newSize, nil
 }
 
 func (v *VolumeManager) DeleteVolume(volID string) error {

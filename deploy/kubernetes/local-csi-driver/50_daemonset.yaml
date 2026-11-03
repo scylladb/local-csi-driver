@@ -107,6 +107,22 @@ spec:
         volumeMounts:
         - name: plugin-dir
           mountPath: /csi
+      - name: csi-resizer
+        image: registry.k8s.io/sig-storage/csi-resizer:v1.14.0
+        imagePullPolicy: IfNotPresent
+        args:
+        - --csi-address=/csi/csi.sock
+        - --v=2
+        - --leader-election
+        - --leader-election-namespace=$(NAMESPACE)
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        volumeMounts:
+        - name: plugin-dir
+          mountPath: /csi
       volumes:
       - name: kubelet-dir
         hostPath:

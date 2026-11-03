@@ -140,6 +140,49 @@ func (s *StateManager) SaveVolumeState(volume *VolumeState) (err error) {
 	return nil
 }
 
+func (s *StateManager) UpdateVolumeSize(id string, newSize int64) (err error) {
+	s.mut.RLock()
+	current, ok := s.volumes[id]
+	s.mut.RUnlock()
+	if !ok {
+		return fmt.Errorf("volume %q not found", id)
+	}
+
+	updated := *current
+	updated.Size = newSize
+
+	statePath := s.getVolumeStatePath(id)
+	tmpPath := statePath + ".tmp"
+
+	f, err := os.Create(tmpPath)
+	if err != nil {
+		return fmt.Errorf("can't open state file %q: %w", tmpPath, err)
+	}
+
+	err = json.NewEncoder(f).Encode(&updated)
+	if err == nil {
+		err = f.Sync()
+	}
+	closeErr := f.Close()
+	if err = errors.NewAggregate([]error{err, closeErr}); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("can't write state file %q: %w", tmpPath, err)
+	}
+
+	err = os.Rename(tmpPath, statePath)
+	if err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("can't replace state file %q: %w", statePath, err)
+	}
+
+	s.mut.Lock()
+	defer s.mut.Unlock()
+	s.volumesTotalSize += newSize - current.Size
+	s.volumes[id] = &updated
+
+	return nil
+}
+
 func (s *StateManager) DeleteVolumeState(id string) error {
 	statePath := s.getVolumeStatePath(id)
 	err := os.Remove(statePath)

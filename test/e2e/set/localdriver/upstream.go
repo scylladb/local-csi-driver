@@ -33,6 +33,7 @@ func (d *localCsiDriver) GetDriverInfo() *storageframework.DriverInfo {
 			storageframework.CapSingleNodeVolume: true,
 			storageframework.CapTopology:         true,
 			storageframework.CapCapacity:         true,
+			storageframework.CapOnlineExpansion:  true,
 		},
 	}
 }

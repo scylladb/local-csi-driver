@@ -4,12 +4,14 @@ package driver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
 	"github.com/scylladb/local-csi-driver/pkg/driver/limit"
+	"github.com/scylladb/local-csi-driver/pkg/driver/volume"
 	"github.com/scylladb/local-csi-driver/pkg/util/slices"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -23,6 +25,13 @@ func (d *driver) NodeGetCapabilities(ctx context.Context, request *csi.NodeGetCa
 				Type: &csi.NodeServiceCapability_Rpc{
 					Rpc: &csi.NodeServiceCapability_RPC{
 						Type: csi.NodeServiceCapability_RPC_GET_VOLUME_STATS,
+					},
+				},
+			},
+			{
+				Type: &csi.NodeServiceCapability_Rpc{
+					Rpc: &csi.NodeServiceCapability_RPC{
+						Type: csi.NodeServiceCapability_RPC_EXPAND_VOLUME,
 					},
 				},
 			},
@@ -142,4 +151,50 @@ func (d *driver) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeS
 		},
 	}, nil
 
+}
+
+func (d *driver) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
+	klog.V(4).InfoS("New request", "server", "node", "function", "NodeExpandVolume", "request", protosanitizer.StripSecrets(req))
+
+	volumeID := req.GetVolumeId()
+	if len(volumeID) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Volume ID not provided")
+	}
+
+	if len(req.GetVolumePath()) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Volume path not provided")
+	}
+
+	if volCap := req.GetVolumeCapability(); volCap != nil && volCap.GetBlock() != nil {
+		return nil, status.Error(codes.InvalidArgument, "Expansion of block volumes is not supported")
+	}
+
+	capRange := req.GetCapacityRange()
+	if capRange == nil {
+		return nil, status.Error(codes.InvalidArgument, "Capacity range not provided")
+	}
+
+	newSize := capRange.GetRequiredBytes()
+	if limitBytes := capRange.GetLimitBytes(); limitBytes > 0 && newSize > limitBytes {
+		return nil, status.Errorf(codes.OutOfRange, "Required bytes %d exceed limit bytes %d", newSize, limitBytes)
+	}
+
+	d.mut.Lock()
+	defer d.mut.Unlock()
+
+	size, err := d.volumeManager.ExpandVolume(volumeID, newSize)
+	if err != nil {
+		switch {
+		case errors.Is(err, volume.ErrVolumeNotFound):
+			return nil, status.Errorf(codes.NotFound, "Volume %q not found", volumeID)
+		case errors.Is(err, volume.ErrInsufficientCapacity):
+			return nil, status.Errorf(codes.OutOfRange, "Can't expand volume: %v", err)
+		default:
+			return nil, status.Errorf(codes.Internal, "Can't expand volume: %v", err)
+		}
+	}
+
+	return &csi.NodeExpandVolumeResponse{
+		CapacityBytes: size,
+	}, nil
 }
