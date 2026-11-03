@@ -96,6 +96,28 @@ func NewStateManager(workspacePath string) (*StateManager, error) {
 	}, nil
 }
 
+// restoreStateFile writes the given state back to statePath on a best-effort basis. It is only
+// used to undo a just-replaced state file, so no tmp-file dance is needed here - the atomic
+// replacement has already happened and the in-memory state is authoritative.
+func restoreStateFile(statePath string, vs *VolumeState) (err error) {
+	f, err := os.Create(statePath)
+	if err != nil {
+		return fmt.Errorf("can't open state file %q: %w", statePath, err)
+	}
+
+	defer func() {
+		closeErr := f.Close()
+		err = errors.NewAggregate([]error{err, closeErr})
+	}()
+
+	err = json.NewEncoder(f).Encode(vs)
+	if err != nil {
+		return fmt.Errorf("can't encode state file %q: %w", statePath, err)
+	}
+
+	return nil
+}
+
 func (s *StateManager) getVolumeStatePath(id string) string {
 	volumePath := path.Join(s.workspacePath, id)
 	return fmt.Sprintf("%s.%s", volumePath, volumeStateFileExtension)
@@ -182,6 +204,13 @@ func (s *StateManager) UpdateVolumeSize(id string, newSize int64) (err error) {
 	dirSyncErr := dir.Sync()
 	dirCloseErr := dir.Close()
 	if err = errors.NewAggregate([]error{dirSyncErr, dirCloseErr}); err != nil {
+		// The in-memory state hasn't been updated yet and the caller rolls the quota back,
+		// so put the previous state back on a best-effort basis - a restart must not
+		// resurrect the expanded size of a failed expansion.
+		restoreErr := restoreStateFile(statePath, current)
+		if restoreErr != nil {
+			return errors.NewAggregate([]error{err, restoreErr})
+		}
 		return fmt.Errorf("can't sync state dir %q: %w", filepath.Dir(statePath), err)
 	}
 
