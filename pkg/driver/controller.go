@@ -144,14 +144,17 @@ func (d *driver) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest)
 		return nil, status.Error(codes.InvalidArgument, "Volume ID not provided")
 	}
 
-	d.mut.Lock()
-	err := d.volumeManager.DeleteVolume(volID)
-	d.mut.Unlock()
+	// The volume contents are removed with the capacity still reserved - the volume state is
+	// released only afterwards, under the driver lock, so concurrent creations and expansions
+	// can't claim space that is still occupied by the removed files.
+	err := d.volumeManager.CleanupVolumeDir(volID)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to delete volume: %v", err)
 	}
 
-	err = d.volumeManager.CleanupVolumeDir(volID)
+	d.mut.Lock()
+	err = d.volumeManager.DeleteVolume(volID)
+	d.mut.Unlock()
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to delete volume: %v", err)
 	}
