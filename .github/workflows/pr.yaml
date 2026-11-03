@@ -72,7 +72,7 @@ jobs:
   # checks are invisible to it. This aggregate is the single context it can be told to require, which keeps
   # wiring further jobs into the merge gate a one-line change here.
   check-required:
-    runs-on: ubuntu-latest
+    runs-on: hosted-runners-standard-pool-local-csi-driver
     needs:
     - checks
     - detect-source-changes

@@ -21,7 +21,7 @@ env:
 
 jobs:
   branches:
-    runs-on: ubuntu-latest
+    runs-on: hosted-runners-standard-pool-local-csi-driver
     outputs:
       branches: ${{ steps.branches.outputs.branches }}
     steps:
@@ -36,7 +36,7 @@ jobs:
   govulncheck:
     needs: branches
     name: govulncheck (${{ matrix.branch }})
-    runs-on: ubuntu-latest
+    runs-on: hosted-runners-standard-pool-local-csi-driver
     container:
       image: quay.io/scylladb-dev/soci-govulncheck-gh-bot:latest
     timeout-minutes: 60
