@@ -169,6 +169,10 @@ func (d *driver) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolume
 		return nil, status.Error(codes.InvalidArgument, "Expansion of block volumes is not supported")
 	}
 
+	if d.volumeManager.GetVolumeStateByID(volumeID) == nil {
+		return nil, status.Errorf(codes.NotFound, "Volume %q not found", volumeID)
+	}
+
 	capRange := req.GetCapacityRange()
 	if capRange == nil {
 		return nil, status.Error(codes.InvalidArgument, "Capacity range not provided")
