@@ -169,7 +169,6 @@ func (v *VolumeManager) ExpandVolume(volID string, newSize int64) (int64, error)
 	if err != nil {
 		return 0, fmt.Errorf("can't check available capacity: %w", err)
 	}
-	availableCapacity += MetadataFileMaxSize
 
 	if delta := newSize - oldSize; delta > availableCapacity {
 		return 0, fmt.Errorf("%w: requested additional %dB, available %dB", ErrInsufficientCapacity, delta, availableCapacity)
