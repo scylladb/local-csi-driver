@@ -108,7 +108,8 @@ spec:
         - name: plugin-dir
           mountPath: /csi
       - name: csi-resizer
-        image: registry.k8s.io/sig-storage/csi-resizer:v1.14.0
+        # renovate: datasource=docker depName=csi-resizer packageName=registry.k8s.io/sig-storage/csi-resizer versioning=semver
+        image: registry.k8s.io/sig-storage/csi-resizer:v1.14.0@sha256:5e7cbb63fd497fa913caa21fee1a69f727c220c6fa83c5f8bb0995e2ad73a474
         imagePullPolicy: IfNotPresent
         args:
         - --csi-address=/csi/csi.sock
