@@ -175,6 +175,16 @@ func (s *StateManager) UpdateVolumeSize(id string, newSize int64) (err error) {
 		return fmt.Errorf("can't replace state file %q: %w", statePath, err)
 	}
 
+	dir, err := os.Open(filepath.Dir(statePath))
+	if err != nil {
+		return fmt.Errorf("can't open state dir %q: %w", filepath.Dir(statePath), err)
+	}
+	dirSyncErr := dir.Sync()
+	dirCloseErr := dir.Close()
+	if err = errors.NewAggregate([]error{dirSyncErr, dirCloseErr}); err != nil {
+		return fmt.Errorf("can't sync state dir %q: %w", filepath.Dir(statePath), err)
+	}
+
 	s.mut.Lock()
 	defer s.mut.Unlock()
 	s.volumesTotalSize += newSize - current.Size
