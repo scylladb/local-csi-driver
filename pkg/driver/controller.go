@@ -144,6 +144,10 @@ func (d *driver) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest)
 		return nil, status.Error(codes.InvalidArgument, "Volume ID not provided")
 	}
 
+	if _, err := uuid.Parse(volID); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Volume ID %q is not a valid UUID", volID)
+	}
+
 	// The volume contents are removed with the capacity still reserved - the volume state is
 	// released only afterwards, under the driver lock, so concurrent creations and expansions
 	// can't claim space that is still occupied by the removed files.
