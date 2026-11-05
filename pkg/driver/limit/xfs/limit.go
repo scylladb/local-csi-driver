@@ -70,6 +70,10 @@ func (xl *xfsLimiter) restoreVolumeQuota(v volume.VolumeState) error {
 	volumePath := v.VolumePath(xl.volumesDir)
 	vd, err := os.Open(volumePath)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			klog.ErrorS(err, "Volume directory is missing, skipping quota restore", "volume", v.ID, "directory", volumePath)
+			return nil
+		}
 		return fmt.Errorf("can't open file %q: %w", volumePath, err)
 	}
 	defer func() {
