@@ -120,6 +120,14 @@ func restoreStateFile(statePath string, vs *VolumeState) (err error) {
 		return fmt.Errorf("can't replace state file %q: %w", statePath, err)
 	}
 
+	dir, err := os.Open(filepath.Dir(statePath))
+	if err == nil {
+		err = errors.NewAggregate([]error{dir.Sync(), dir.Close()})
+	}
+	if err != nil {
+		return fmt.Errorf("can't sync state dir %q: %w", filepath.Dir(statePath), err)
+	}
+
 	return nil
 }
 
