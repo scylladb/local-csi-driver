@@ -5,6 +5,7 @@ package driver
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
@@ -144,8 +145,8 @@ func (d *driver) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest)
 		return nil, status.Error(codes.InvalidArgument, "Volume ID not provided")
 	}
 
-	if _, err := uuid.Parse(volID); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "Volume ID %q is not a valid UUID", volID)
+	if volID != filepath.Base(volID) || volID == "." || volID == ".." {
+		return nil, status.Errorf(codes.InvalidArgument, "Invalid volume ID %q", volID)
 	}
 
 	// The volume contents are removed with the capacity still reserved - the volume state is
