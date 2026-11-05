@@ -208,7 +208,11 @@ func (v *VolumeManager) DeleteVolume(volID string) error {
 
 	err = v.state.DeleteVolumeState(volID)
 	if err != nil {
-		return fmt.Errorf("can't delete state of volume %q: %w", volID, err)
+		errs := []error{fmt.Errorf("can't delete state of volume %q: %w", volID, err)}
+		if rollbackErr := v.limiter.SetLimit(vs.LimitID, vs.Size); rollbackErr != nil {
+			errs = append(errs, fmt.Errorf("can't restore limit of volume %q: %w", volID, rollbackErr))
+		}
+		return errors.NewAggregate(errs)
 	}
 	klog.V(2).InfoS("Removed volume state file", "volume", volID)
 
