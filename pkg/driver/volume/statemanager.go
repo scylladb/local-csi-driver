@@ -96,23 +96,28 @@ func NewStateManager(workspacePath string) (*StateManager, error) {
 	}, nil
 }
 
-// restoreStateFile writes the given state back to statePath on a best-effort basis. It is only
-// used to undo a just-replaced state file, so no tmp-file dance is needed here - the atomic
-// replacement has already happened and the in-memory state is authoritative.
 func restoreStateFile(statePath string, vs *VolumeState) (err error) {
-	f, err := os.Create(statePath)
+	tmpPath := statePath + ".restore"
+
+	f, err := os.Create(tmpPath)
 	if err != nil {
-		return fmt.Errorf("can't open state file %q: %w", statePath, err)
+		return fmt.Errorf("can't open state file %q: %w", tmpPath, err)
 	}
 
-	defer func() {
-		closeErr := f.Close()
-		err = errors.NewAggregate([]error{err, closeErr})
-	}()
-
 	err = json.NewEncoder(f).Encode(vs)
+	if err == nil {
+		err = f.Sync()
+	}
+	closeErr := f.Close()
+	if err = errors.NewAggregate([]error{err, closeErr}); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("can't write state file %q: %w", tmpPath, err)
+	}
+
+	err = os.Rename(tmpPath, statePath)
 	if err != nil {
-		return fmt.Errorf("can't encode state file %q: %w", statePath, err)
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("can't replace state file %q: %w", statePath, err)
 	}
 
 	return nil
@@ -198,20 +203,18 @@ func (s *StateManager) UpdateVolumeSize(id string, newSize int64) (err error) {
 	}
 
 	dir, err := os.Open(filepath.Dir(statePath))
-	if err != nil {
-		return fmt.Errorf("can't open state dir %q: %w", filepath.Dir(statePath), err)
+	dirSyncErr := error(nil)
+	dirCloseErr := error(nil)
+	if err == nil {
+		dirSyncErr = dir.Sync()
+		dirCloseErr = dir.Close()
 	}
-	dirSyncErr := dir.Sync()
-	dirCloseErr := dir.Close()
-	if err = errors.NewAggregate([]error{dirSyncErr, dirCloseErr}); err != nil {
-		// The in-memory state hasn't been updated yet and the caller rolls the quota back,
-		// so put the previous state back on a best-effort basis - a restart must not
-		// resurrect the expanded size of a failed expansion.
-		restoreErr := restoreStateFile(statePath, current)
-		if restoreErr != nil {
+	if err = errors.NewAggregate([]error{err, dirSyncErr, dirCloseErr}); err != nil {
+		err = fmt.Errorf("can't sync state dir %q: %w", filepath.Dir(statePath), err)
+		if restoreErr := restoreStateFile(statePath, current); restoreErr != nil {
 			return errors.NewAggregate([]error{err, restoreErr})
 		}
-		return fmt.Errorf("can't sync state dir %q: %w", filepath.Dir(statePath), err)
+		return err
 	}
 
 	s.mut.Lock()
