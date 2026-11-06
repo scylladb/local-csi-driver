@@ -156,14 +156,21 @@ func (s *StateManager) SaveVolumeState(volume *VolumeState) (err error) {
 		return fmt.Errorf("can't open state file %q: %w", statePath, err)
 	}
 
-	defer func() {
-		closeErr := f.Close()
-		err = errors.NewAggregate([]error{err, closeErr})
-	}()
-
 	err = json.NewEncoder(f).Encode(volume)
+	if err == nil {
+		err = f.Sync()
+	}
+	closeErr := f.Close()
+	if err = errors.NewAggregate([]error{err, closeErr}); err != nil {
+		return fmt.Errorf("can't write state file %q: %w", statePath, err)
+	}
+
+	dir, err := os.Open(filepath.Dir(statePath))
+	if err == nil {
+		err = errors.NewAggregate([]error{dir.Sync(), dir.Close()})
+	}
 	if err != nil {
-		return fmt.Errorf("can't encode state file %q: %w", statePath, err)
+		return fmt.Errorf("can't sync state dir %q: %w", filepath.Dir(statePath), err)
 	}
 
 	s.mut.Lock()
