@@ -28,11 +28,13 @@ func (d *localCsiDriver) GetDriverInfo() *storageframework.DriverInfo {
 		SupportedFsType: sets.NewString("xfs", ""),
 		TopologyKeys:    []string{driver.NodeNameTopologyKey},
 		Capabilities: map[storageframework.Capability]bool{
-			storageframework.CapPersistence:      true,
-			storageframework.CapExec:             true,
-			storageframework.CapSingleNodeVolume: true,
-			storageframework.CapTopology:         true,
-			storageframework.CapCapacity:         true,
+			storageframework.CapPersistence:         true,
+			storageframework.CapExec:                true,
+			storageframework.CapSingleNodeVolume:    true,
+			storageframework.CapTopology:            true,
+			storageframework.CapCapacity:            true,
+			storageframework.CapOnlineExpansion:     true,
+			storageframework.CapControllerExpansion: true,
 		},
 	}
 }
@@ -84,6 +86,7 @@ var _ = g.Describe("CSI upstream", ginkgotest.LocalCSIDriverLabel, func() {
 			testsuites.InitMultiVolumeTestSuite,
 			testsuites.InitCapacityTestSuite,
 			testsuites.InitTopologyTestSuite,
+			testsuites.InitVolumeExpandTestSuite,
 		})
 	})
 })

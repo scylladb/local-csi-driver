@@ -4,5 +4,6 @@ metadata:
   name: scylladb-local-xfs
 provisioner: local.csi.scylladb.com
 volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
 parameters:
   csi.storage.k8s.io/fstype: xfs

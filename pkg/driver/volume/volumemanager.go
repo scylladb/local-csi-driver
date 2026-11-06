@@ -3,6 +3,7 @@
 package volume
 
 import (
+	stderrors "errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -60,6 +61,11 @@ func NewVolumeManager(volumesDir string, sm *StateManager, options ...VolumeMana
 
 	return v, nil
 }
+
+var (
+	ErrVolumeNotFound       = stderrors.New("volume not found")
+	ErrInsufficientCapacity = stderrors.New("insufficient capacity")
+)
 
 func (v *VolumeManager) CreateVolume(volID, name string, capacity int64, volAccessType AccessType) error {
 	availableCapacity, err := v.GetAvailableCapacity()
@@ -148,9 +154,74 @@ func (v *VolumeManager) CreateVolume(volID, name string, capacity int64, volAcce
 	return nil
 }
 
+func (v *VolumeManager) ExpandVolume(volID string, newSize int64) (int64, error) {
+	vs := v.state.GetVolumeStateByID(volID)
+	if vs == nil {
+		return 0, ErrVolumeNotFound
+	}
+
+	oldSize := vs.Size
+	if newSize <= oldSize {
+		return oldSize, nil
+	}
+
+	availableCapacity, err := v.GetAvailableCapacity()
+	if err != nil {
+		return 0, fmt.Errorf("can't check available capacity: %w", err)
+	}
+
+	if delta := newSize - oldSize; delta > availableCapacity {
+		return 0, fmt.Errorf("%w: requested additional %dB, available %dB", ErrInsufficientCapacity, delta, availableCapacity)
+	}
+
+	err = v.limiter.SetLimit(vs.LimitID, newSize)
+	if err != nil {
+		return 0, fmt.Errorf("can't set new limit: %w", err)
+	}
+
+	err = v.state.UpdateVolumeSize(volID, newSize)
+	if err != nil {
+		errs := []error{fmt.Errorf("can't save volume state: %w", err)}
+		rollbackErr := v.limiter.SetLimit(vs.LimitID, oldSize)
+		if rollbackErr != nil {
+			errs = append(errs, fmt.Errorf("can't roll back limit: %w", rollbackErr))
+		}
+		return 0, errors.NewAggregate(errs)
+	}
+
+	klog.V(2).InfoS("Volume expanded", "volume", volID, "oldSize", oldSize, "newSize", newSize)
+
+	return newSize, nil
+}
+
 func (v *VolumeManager) DeleteVolume(volID string) error {
 	vs := v.state.GetVolumeStateByID(volID)
+	if vs == nil {
+		return nil
+	}
 
+	err := v.limiter.RemoveLimit(vs.LimitID)
+	if err != nil {
+		return fmt.Errorf("can't delete limit of volume %q: %w", volID, err)
+	}
+	klog.V(2).InfoS("Removed limit", "limitID", vs.LimitID)
+
+	err = v.state.DeleteVolumeState(volID)
+	if err != nil {
+		errs := []error{fmt.Errorf("can't delete state of volume %q: %w", volID, err)}
+		if rollbackErr := v.limiter.SetLimit(vs.LimitID, vs.Size); rollbackErr != nil {
+			errs = append(errs, fmt.Errorf("can't restore limit of volume %q: %w", volID, rollbackErr))
+		}
+		return errors.NewAggregate(errs)
+	}
+	klog.V(2).InfoS("Removed volume state file", "volume", volID)
+
+	return nil
+}
+
+// CleanupVolumeDir removes the volume contents from disk. Removing a big tree can take long,
+// so callers must not hold locks while running it.
+func (v *VolumeManager) CleanupVolumeDir(volID string) error {
 	path := v.getVolumePath(volID)
 	err := os.RemoveAll(path)
 	if err != nil && !os.IsNotExist(err) {
@@ -159,20 +230,6 @@ func (v *VolumeManager) DeleteVolume(volID string) error {
 	if err == nil {
 		klog.V(2).InfoS("Removed volume directory", "volume", volID, "path", path)
 	}
-
-	if vs != nil {
-		err = v.limiter.RemoveLimit(vs.LimitID)
-		if err != nil {
-			return fmt.Errorf("can't delete state of volume %q: %w", volID, err)
-		}
-		klog.V(2).InfoS("Removed limit", "limitID", vs.LimitID)
-	}
-
-	err = v.state.DeleteVolumeState(volID)
-	if err != nil {
-		return fmt.Errorf("can't delete state of volume %q: %w", volID, err)
-	}
-	klog.V(2).InfoS("Removed volume state file", "volume", volID)
 
 	return nil
 }

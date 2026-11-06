@@ -96,6 +96,41 @@ func NewStateManager(workspacePath string) (*StateManager, error) {
 	}, nil
 }
 
+func restoreStateFile(statePath string, vs *VolumeState) (err error) {
+	tmpPath := statePath + ".restore"
+
+	f, err := os.Create(tmpPath)
+	if err != nil {
+		return fmt.Errorf("can't open state file %q: %w", tmpPath, err)
+	}
+
+	err = json.NewEncoder(f).Encode(vs)
+	if err == nil {
+		err = f.Sync()
+	}
+	closeErr := f.Close()
+	if err = errors.NewAggregate([]error{err, closeErr}); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("can't write state file %q: %w", tmpPath, err)
+	}
+
+	err = os.Rename(tmpPath, statePath)
+	if err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("can't replace state file %q: %w", statePath, err)
+	}
+
+	dir, err := os.Open(filepath.Dir(statePath))
+	if err == nil {
+		err = errors.NewAggregate([]error{dir.Sync(), dir.Close()})
+	}
+	if err != nil {
+		return fmt.Errorf("can't sync state dir %q: %w", filepath.Dir(statePath), err)
+	}
+
+	return nil
+}
+
 func (s *StateManager) getVolumeStatePath(id string) string {
 	volumePath := path.Join(s.workspacePath, id)
 	return fmt.Sprintf("%s.%s", volumePath, volumeStateFileExtension)
@@ -121,14 +156,21 @@ func (s *StateManager) SaveVolumeState(volume *VolumeState) (err error) {
 		return fmt.Errorf("can't open state file %q: %w", statePath, err)
 	}
 
-	defer func() {
-		closeErr := f.Close()
-		err = errors.NewAggregate([]error{err, closeErr})
-	}()
-
 	err = json.NewEncoder(f).Encode(volume)
+	if err == nil {
+		err = f.Sync()
+	}
+	closeErr := f.Close()
+	if err = errors.NewAggregate([]error{err, closeErr}); err != nil {
+		return fmt.Errorf("can't write state file %q: %w", statePath, err)
+	}
+
+	dir, err := os.Open(filepath.Dir(statePath))
+	if err == nil {
+		err = errors.NewAggregate([]error{dir.Sync(), dir.Close()})
+	}
 	if err != nil {
-		return fmt.Errorf("can't encode state file %q: %w", statePath, err)
+		return fmt.Errorf("can't sync state dir %q: %w", filepath.Dir(statePath), err)
 	}
 
 	s.mut.Lock()
@@ -136,6 +178,64 @@ func (s *StateManager) SaveVolumeState(volume *VolumeState) (err error) {
 	s.volumes[volume.ID] = volume
 	s.volumeNameToID[volume.Name] = volume.ID
 	s.volumesTotalSize += volume.Size
+
+	return nil
+}
+
+func (s *StateManager) UpdateVolumeSize(id string, newSize int64) (err error) {
+	s.mut.RLock()
+	current, ok := s.volumes[id]
+	s.mut.RUnlock()
+	if !ok {
+		return fmt.Errorf("volume %q not found", id)
+	}
+
+	updated := *current
+	updated.Size = newSize
+
+	statePath := s.getVolumeStatePath(id)
+	tmpPath := statePath + ".tmp"
+
+	f, err := os.Create(tmpPath)
+	if err != nil {
+		return fmt.Errorf("can't open state file %q: %w", tmpPath, err)
+	}
+
+	err = json.NewEncoder(f).Encode(&updated)
+	if err == nil {
+		err = f.Sync()
+	}
+	closeErr := f.Close()
+	if err = errors.NewAggregate([]error{err, closeErr}); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("can't write state file %q: %w", tmpPath, err)
+	}
+
+	err = os.Rename(tmpPath, statePath)
+	if err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("can't replace state file %q: %w", statePath, err)
+	}
+
+	dir, err := os.Open(filepath.Dir(statePath))
+	dirSyncErr := error(nil)
+	dirCloseErr := error(nil)
+	if err == nil {
+		dirSyncErr = dir.Sync()
+		dirCloseErr = dir.Close()
+	}
+	if err = errors.NewAggregate([]error{err, dirSyncErr, dirCloseErr}); err != nil {
+		err = fmt.Errorf("can't sync state dir %q: %w", filepath.Dir(statePath), err)
+		if restoreErr := restoreStateFile(statePath, current); restoreErr != nil {
+			return errors.NewAggregate([]error{err, restoreErr})
+		}
+		return err
+	}
+
+	s.mut.Lock()
+	defer s.mut.Unlock()
+	s.volumesTotalSize += newSize - current.Size
+	s.volumes[id] = &updated
 
 	return nil
 }
