@@ -38,6 +38,12 @@ github.com/NYTimes/gziphandler
 # github.com/antlr4-go/antlr/v4 v4.13.1
 ## explicit; go 1.22
 github.com/antlr4-go/antlr/v4
+# github.com/apache/cassandra-gocql-driver/v2 v2.1.2
+## explicit; go 1.19
+github.com/apache/cassandra-gocql-driver/v2
+github.com/apache/cassandra-gocql-driver/v2/internal/lru
+github.com/apache/cassandra-gocql-driver/v2/internal/murmur
+github.com/apache/cassandra-gocql-driver/v2/internal/streams
 # github.com/beorn7/perks v1.0.1
 ## explicit; go 1.11
 github.com/beorn7/perks/quantile
@@ -183,12 +189,6 @@ github.com/go-openapi/swag/yamlutils
 # github.com/go-task/slim-sprig/v3 v3.0.0
 ## explicit; go 1.20
 github.com/go-task/slim-sprig/v3
-# github.com/gocql/gocql v1.7.0
-## explicit; go 1.13
-github.com/gocql/gocql
-github.com/gocql/gocql/internal/lru
-github.com/gocql/gocql/internal/murmur
-github.com/gocql/gocql/internal/streams
 # github.com/godbus/dbus/v5 v5.2.2
 ## explicit; go 1.20
 github.com/godbus/dbus/v5
@@ -197,7 +197,6 @@ github.com/godbus/dbus/v5
 github.com/golang/protobuf/proto
 # github.com/golang/snappy v1.0.0
 ## explicit
-github.com/golang/snappy
 # github.com/google/btree v1.1.3
 ## explicit; go 1.18
 github.com/google/btree
@@ -303,9 +302,6 @@ github.com/grpc-ecosystem/grpc-gateway/v2/internal/httprule
 github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2/options
 github.com/grpc-ecosystem/grpc-gateway/v2/runtime
 github.com/grpc-ecosystem/grpc-gateway/v2/utilities
-# github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed
-## explicit
-github.com/hailocab/go-hostpool
 # github.com/inconshreveable/mousetrap v1.1.0
 ## explicit; go 1.18
 github.com/inconshreveable/mousetrap
