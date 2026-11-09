@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/container-storage-interface/spec v1.13.0
-	github.com/gocql/gocql v1.7.0
+	github.com/gocql/gocql/v2 v2.1.2
 	github.com/kubernetes-csi/csi-lib-utils v0.25.0
 	github.com/kubernetes-csi/csi-test/v5 v5.6.0
 	github.com/onsi/ginkgo/v2 v2.34.0
