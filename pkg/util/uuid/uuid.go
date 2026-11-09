@@ -5,7 +5,7 @@ package uuid
 import (
 	"encoding/binary"
 
-	"github.com/gocql/gocql"
+	gocql "github.com/apache/cassandra-gocql-driver/v2"
 	"github.com/pkg/errors"
 )
 
@@ -104,14 +104,14 @@ func (u UUID) MarshalCQL(info gocql.TypeInfo) ([]byte, error) {
 		}
 		return u.uuid[:], nil
 	default:
-		return nil, errors.Errorf("unsupported type %q", info.Type())
+		return nil, errors.Errorf("unsupported type 0x%04x", info.Type())
 	}
 }
 
 // UnmarshalCQL implements gocql.Unmarshaler.
 func (u *UUID) UnmarshalCQL(info gocql.TypeInfo, data []byte) error {
 	if info.Type() != gocql.TypeUUID && info.Type() != gocql.TypeTimeUUID {
-		return errors.Errorf("unsupported type %q", info.Type())
+		return errors.Errorf("unsupported type 0x%04x", info.Type())
 	}
 
 	if len(data) == 0 {
