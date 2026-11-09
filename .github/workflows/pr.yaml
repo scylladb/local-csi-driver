@@ -66,7 +66,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Verify commits
-        uses: scylladb/scylla-operator/.github/actions/verify-commits@8622d9636308f9f9e4fb778ed2c73db1ea4dfb42 # master
+        uses: scylladb/scylla-operator/.github/actions/verify-commits@71bd4c083c8712ad45d4c12275980698352f9145 # master
 
   # The merge automation gates on a fixed set of contexts it is configured with, so individual GitHub Actions
   # checks are invisible to it. This aggregate is the single context it can be told to require, which keeps

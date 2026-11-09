@@ -55,7 +55,7 @@ jobs:
 
     - name: Materialize the CI provisioners kubeconfig
       id: provisioners
-      uses: scylladb/scylla-operator/.github/actions/materialize-secret@8622d9636308f9f9e4fb778ed2c73db1ea4dfb42 # master
+      uses: scylladb/scylla-operator/.github/actions/materialize-secret@71bd4c083c8712ad45d4c12275980698352f9145 # master
       with:
         name: ci-provisioners-kubeconfig
         content: ${{ secrets.ci-provisioners-kubeconfig }}
@@ -64,7 +64,7 @@ jobs:
     # including when provisioning itself fails partway.
     - name: Provision the cluster
       id: cluster
-      uses: scylladb/scylla-operator/.github/actions/ci-provisioning/gke/provision-clusters@8622d9636308f9f9e4fb778ed2c73db1ea4dfb42 # master
+      uses: scylladb/scylla-operator/.github/actions/ci-provisioning/gke/provision-clusters@71bd4c083c8712ad45d4c12275980698352f9145 # master
       with:
         provisioners-kubeconfig: ${{ steps.provisioners.outputs.path }}
         name: ${{ env.OBJECT_NAME }}
@@ -91,14 +91,14 @@ jobs:
 
     - name: Pack and upload artifacts
       if: always()
-      uses: scylladb/scylla-operator/.github/actions/pack-and-upload-artifacts@8622d9636308f9f9e4fb778ed2c73db1ea4dfb42 # master
+      uses: scylladb/scylla-operator/.github/actions/pack-and-upload-artifacts@71bd4c083c8712ad45d4c12275980698352f9145 # master
       with:
         name: artifacts-${{ inputs.name }}-${{ github.run_attempt }}
         directory: ${{ env.ARTIFACTS }}
 
     - name: Clean up the cluster
       if: always()
-      uses: scylladb/scylla-operator/.github/actions/ci-provisioning/gke/cleanup-clusters@8622d9636308f9f9e4fb778ed2c73db1ea4dfb42 # master
+      uses: scylladb/scylla-operator/.github/actions/ci-provisioning/gke/cleanup-clusters@71bd4c083c8712ad45d4c12275980698352f9145 # master
       with:
         provisioners-kubeconfig: ${{ steps.provisioners.outputs.path }}
         object-name: ${{ env.OBJECT_NAME }}

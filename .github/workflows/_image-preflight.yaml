@@ -39,7 +39,7 @@ jobs:
     timeout-minutes: 15
     steps:
     - name: Run preflight
-      uses: scylladb/scylla-operator/.github/actions/certify-image@c7af3d5e177cfc684c4eb12e4aa35e0e0a04096c # master
+      uses: scylladb/scylla-operator/.github/actions/certify-image@71bd4c083c8712ad45d4c12275980698352f9145 # master
       with:
         image-repo-ref: ${{ inputs.image-repo-ref }}
         image-tag: ${{ inputs.image-tag }}

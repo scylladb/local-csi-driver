@@ -33,6 +33,6 @@ jobs:
     timeout-minutes: 5
     steps:
     - name: Report the failure to Slack
-      uses: scylladb/scylla-operator/.github/actions/report-failure-to-slack@8622d9636308f9f9e4fb778ed2c73db1ea4dfb42 # master
+      uses: scylladb/scylla-operator/.github/actions/report-failure-to-slack@71bd4c083c8712ad45d4c12275980698352f9145 # master
       with:
         webhook-url: ${{ secrets.SLACK_TEAM_OPERATOR_CI_WEBHOOK_URL }}

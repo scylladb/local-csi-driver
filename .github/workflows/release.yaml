@@ -63,7 +63,7 @@ jobs:
     steps:
     - name: Plan the release
       id: plan
-      uses: scylladb/scylla-operator/.github/actions/release/plan@c7af3d5e177cfc684c4eb12e4aa35e0e0a04096c # master
+      uses: scylladb/scylla-operator/.github/actions/release/plan@71bd4c083c8712ad45d4c12275980698352f9145 # master
       with:
         version: ${{ inputs.version }}
         allow-any-ref: ${{ inputs.allow-any-ref }}
@@ -116,7 +116,7 @@ jobs:
       contents: write
     steps:
     - name: Push the tag
-      uses: scylladb/scylla-operator/.github/actions/release/push-tag@c7af3d5e177cfc684c4eb12e4aa35e0e0a04096c # master
+      uses: scylladb/scylla-operator/.github/actions/release/push-tag@71bd4c083c8712ad45d4c12275980698352f9145 # master
       with:
         tag: ${{ needs.plan-release.outputs.tag }}
         image-ref: ${{ needs.image.outputs.image-ref }}
@@ -142,17 +142,17 @@ jobs:
     timeout-minutes: 30
     steps:
     - name: Write quay.io registry auth
-      uses: scylladb/scylla-operator/.github/actions/write-registry-auth@c7af3d5e177cfc684c4eb12e4aa35e0e0a04096c # master
+      uses: scylladb/scylla-operator/.github/actions/write-registry-auth@71bd4c083c8712ad45d4c12275980698352f9145 # master
       with:
         auth-json: ${{ secrets.QUAY_SCYLLADB_PROD_PUBLISHER_CREDS }}
 
     - name: Write docker.io registry auth
-      uses: scylladb/scylla-operator/.github/actions/write-registry-auth@c7af3d5e177cfc684c4eb12e4aa35e0e0a04096c # master
+      uses: scylladb/scylla-operator/.github/actions/write-registry-auth@71bd4c083c8712ad45d4c12275980698352f9145 # master
       with:
         auth-json: ${{ secrets.DOCKERHUB_SCYLLADB_PROD_PUBLISHER_CREDS }}
 
     - name: Copy the image
-      uses: scylladb/scylla-operator/.github/actions/release/promote-image@c7af3d5e177cfc684c4eb12e4aa35e0e0a04096c # master
+      uses: scylladb/scylla-operator/.github/actions/release/promote-image@71bd4c083c8712ad45d4c12275980698352f9145 # master
       with:
         source-image-ref: ${{ needs.image.outputs.image-ref || needs.plan-release.outputs.image-ref }}
         image-repo-ref: ${{ matrix.image-repo-ref }}
@@ -188,7 +188,7 @@ jobs:
       contents: write
     steps:
     - name: Create the release
-      uses: scylladb/scylla-operator/.github/actions/release/create-github-release@c7af3d5e177cfc684c4eb12e4aa35e0e0a04096c # master
+      uses: scylladb/scylla-operator/.github/actions/release/create-github-release@71bd4c083c8712ad45d4c12275980698352f9145 # master
       with:
         version: ${{ inputs.version }}
         tag: ${{ needs.plan-release.outputs.tag }}
