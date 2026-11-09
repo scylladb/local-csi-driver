@@ -162,7 +162,8 @@ func (s *StateManager) SaveVolumeState(volume *VolumeState) (err error) {
 	}
 	closeErr := f.Close()
 	if err = errors.NewAggregate([]error{err, closeErr}); err != nil {
-		return fmt.Errorf("can't write state file %q: %w", statePath, err)
+		err = fmt.Errorf("can't write state file %q: %w", statePath, err)
+		return discardUnsavedVolumeState(statePath, err)
 	}
 
 	dir, err := os.Open(filepath.Dir(statePath))
@@ -170,7 +171,8 @@ func (s *StateManager) SaveVolumeState(volume *VolumeState) (err error) {
 		err = errors.NewAggregate([]error{dir.Sync(), dir.Close()})
 	}
 	if err != nil {
-		return fmt.Errorf("can't sync state dir %q: %w", filepath.Dir(statePath), err)
+		err = fmt.Errorf("can't sync state dir %q: %w", filepath.Dir(statePath), err)
+		return discardUnsavedVolumeState(statePath, err)
 	}
 
 	s.mut.Lock()
@@ -180,6 +182,13 @@ func (s *StateManager) SaveVolumeState(volume *VolumeState) (err error) {
 	s.volumesTotalSize += volume.Size
 
 	return nil
+}
+
+func discardUnsavedVolumeState(statePath string, saveErr error) error {
+	if removeErr := os.Remove(statePath); removeErr != nil && !os.IsNotExist(removeErr) {
+		return errors.NewAggregate([]error{saveErr, fmt.Errorf("can't remove unsaved volume state file %q: %w", statePath, removeErr)})
+	}
+	return saveErr
 }
 
 func (s *StateManager) UpdateVolumeSize(id string, newSize int64) (err error) {
