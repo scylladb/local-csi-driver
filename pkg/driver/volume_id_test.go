@@ -6,6 +6,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -54,6 +55,8 @@ func TestDeleteVolumeID(t *testing.T) {
 		{"../outside", codes.OK},
 		{"/outside", codes.OK},
 		{"not-a-uuid", codes.OK},
+		{strings.ToUpper(testVolumeID), codes.OK},
+		{strings.ReplaceAll(testVolumeID, "-", ""), codes.OK},
 		{testVolumeID + "/..", codes.OK},
 		{"9b2a15dc-1a54-4f23-8810-a926aa9f8783", codes.OK},
 		{testVolumeID, codes.OK},
@@ -61,9 +64,16 @@ func TestDeleteVolumeID(t *testing.T) {
 		t.Run(tc.id, func(t *testing.T) {
 			t.Parallel()
 			d, _, root := newVolumeIDTestDriver(t)
+			compactPath := filepath.Join(root, "volumes", strings.ReplaceAll(testVolumeID, "-", ""))
+			if err := os.Mkdir(compactPath, 0700); err != nil {
+				t.Fatal(err)
+			}
 			_, err := d.DeleteVolume(context.Background(), &csi.DeleteVolumeRequest{VolumeId: tc.id})
 			if status.Code(err) != tc.code {
 				t.Fatalf("expected %v, got %v", tc.code, err)
+			}
+			if _, err := os.Stat(compactPath); err != nil {
+				t.Errorf("unrelated compact UUID directory was affected: %v", err)
 			}
 			if data, err := os.ReadFile(filepath.Join(root, "outside")); err != nil || string(data) != "keep" {
 				t.Fatalf("unrelated file changed: data=%q, err=%v", data, err)
@@ -94,6 +104,8 @@ func TestNodePublishVolumeID(t *testing.T) {
 		{"../outside", codes.InvalidArgument},
 		{"/outside", codes.InvalidArgument},
 		{"not-a-uuid", codes.InvalidArgument},
+		{strings.ToUpper(testVolumeID), codes.InvalidArgument},
+		{strings.ReplaceAll(testVolumeID, "-", ""), codes.InvalidArgument},
 		{testVolumeID + "/..", codes.InvalidArgument},
 		{"9b2a15dc-1a54-4f23-8810-a926aa9f8783", codes.NotFound},
 		{testVolumeID, codes.OK},

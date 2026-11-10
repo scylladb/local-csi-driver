@@ -11,7 +11,6 @@ import (
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
 	"github.com/scylladb/local-csi-driver/pkg/driver/limit"
 	"github.com/scylladb/local-csi-driver/pkg/util/slices"
-	"github.com/scylladb/local-csi-driver/pkg/util/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog/v2"
@@ -35,8 +34,8 @@ func (d *driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 	klog.V(4).InfoS("New request", "server", "node", "function", "NodePublishVolume", "request", protosanitizer.StripSecrets(req))
 
 	volumeID := req.GetVolumeId()
-	if _, err := uuid.Parse(volumeID); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "Invalid volume ID: %v", err)
+	if !isCanonicalVolumeID(volumeID) {
+		return nil, status.Error(codes.InvalidArgument, "Volume ID must be a canonical UUID")
 	}
 	targetPath := req.GetTargetPath()
 
