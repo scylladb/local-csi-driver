@@ -145,6 +145,7 @@ func (d *driver) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest)
 	}
 	if !isCanonicalVolumeID(volID) {
 		// An invalid ID cannot refer to a volume created by this driver.
+		klog.Warningf("Ignoring DeleteVolume request for invalid volume ID %q", volID)
 		return &csi.DeleteVolumeResponse{}, nil
 	}
 
