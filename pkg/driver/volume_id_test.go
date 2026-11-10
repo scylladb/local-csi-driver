@@ -46,20 +46,21 @@ func newVolumeIDTestDriver(t *testing.T) (*driver, *mount.FakeMounter, string) {
 func TestDeleteVolumeID(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		id   string
-		code codes.Code
+		id      string
+		code    codes.Code
+		removed bool
 	}{
-		{"", codes.InvalidArgument},
-		{".", codes.OK},
-		{"..", codes.OK},
-		{"../outside", codes.OK},
-		{"/" + testVolumeID, codes.OK},
-		{"not-a-uuid", codes.OK},
-		{strings.ToUpper(testVolumeID), codes.OK},
-		{strings.ReplaceAll(testVolumeID, "-", ""), codes.OK},
-		{testVolumeID + "/..", codes.OK},
-		{"9b2a15dc-1a54-4f23-8810-a926aa9f8783", codes.OK},
-		{testVolumeID, codes.OK},
+		{"", codes.InvalidArgument, false},
+		{".", codes.OK, false},
+		{"..", codes.OK, false},
+		{"../outside", codes.OK, false},
+		{"/" + testVolumeID, codes.OK, false},
+		{"not-a-uuid", codes.OK, false},
+		{strings.ToUpper(testVolumeID), codes.OK, false},
+		{strings.ReplaceAll(testVolumeID, "-", ""), codes.OK, false},
+		{testVolumeID + "/..", codes.OK, false},
+		{"9b2a15dc-1a54-4f23-8810-a926aa9f8783", codes.OK, false},
+		{testVolumeID, codes.OK, true},
 	} {
 		t.Run(tc.id, func(t *testing.T) {
 			t.Parallel()
@@ -80,7 +81,7 @@ func TestDeleteVolumeID(t *testing.T) {
 			}
 			for _, name := range []string{testVolumeID, testVolumeID + ".json"} {
 				_, err := os.Stat(filepath.Join(root, "volumes", name))
-				if tc.id == testVolumeID {
+				if tc.removed {
 					if !os.IsNotExist(err) {
 						t.Errorf("expected %q to be removed, got %v", name, err)
 					}
