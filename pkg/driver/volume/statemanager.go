@@ -188,6 +188,15 @@ func discardUnsavedVolumeState(statePath string, saveErr error) error {
 	if removeErr := os.Remove(statePath); removeErr != nil && !os.IsNotExist(removeErr) {
 		return errors.NewAggregate([]error{saveErr, fmt.Errorf("can't remove unsaved volume state file %q: %w", statePath, removeErr)})
 	}
+
+	dir, err := os.Open(filepath.Dir(statePath))
+	if err == nil {
+		err = errors.NewAggregate([]error{dir.Sync(), dir.Close()})
+	}
+	if err != nil {
+		return errors.NewAggregate([]error{saveErr, fmt.Errorf("can't sync state dir %q: %w", filepath.Dir(statePath), err)})
+	}
+
 	return saveErr
 }
 
