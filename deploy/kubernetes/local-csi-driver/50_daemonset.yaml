@@ -107,6 +107,23 @@ spec:
         volumeMounts:
         - name: plugin-dir
           mountPath: /csi
+      - name: csi-resizer
+        # renovate: datasource=docker depName=csi-resizer packageName=registry.k8s.io/sig-storage/csi-resizer versioning=semver
+        image: registry.k8s.io/sig-storage/csi-resizer:v1.14.0@sha256:5e7cbb63fd497fa913caa21fee1a69f727c220c6fa83c5f8bb0995e2ad73a474
+        imagePullPolicy: IfNotPresent
+        args:
+        - --csi-address=/csi/csi.sock
+        - --v=2
+        - --leader-election
+        - --leader-election-namespace=$(NAMESPACE)
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        volumeMounts:
+        - name: plugin-dir
+          mountPath: /csi
       volumes:
       - name: kubelet-dir
         hostPath:

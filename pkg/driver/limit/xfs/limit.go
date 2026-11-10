@@ -70,6 +70,10 @@ func (xl *xfsLimiter) restoreVolumeQuota(v volume.VolumeState) error {
 	volumePath := v.VolumePath(xl.volumesDir)
 	vd, err := os.Open(volumePath)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			klog.ErrorS(err, "Volume directory is missing, skipping quota restore", "volume", v.ID, "directory", volumePath)
+			return nil
+		}
 		return fmt.Errorf("can't open file %q: %w", volumePath, err)
 	}
 	defer func() {
@@ -151,7 +155,11 @@ func (xl *xfsLimiter) RemoveLimit(limitID uint32) error {
 
 // XFS Quota block units are in BBs (Basic Blocks) of 512 bytes.
 func bytesToBlocks(capacity int64) uint64 {
-	return uint64(capacity >> 9)
+	blocks := capacity >> 9
+	if capacity&((1<<9)-1) != 0 {
+		blocks++
+	}
+	return uint64(blocks)
 }
 
 func getMountEntry(mountPoint string) (mount.MountPoint, error) {
