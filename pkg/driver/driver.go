@@ -9,6 +9,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/scylladb/local-csi-driver/pkg/driver/volume"
 	"github.com/scylladb/local-csi-driver/pkg/util/slices"
+	"github.com/scylladb/local-csi-driver/pkg/util/uuid"
 	"k8s.io/apimachinery/pkg/util/errors"
 )
 
@@ -47,6 +48,11 @@ func NewDriver(name, version, nodeName string, volumeManager *volume.VolumeManag
 		volumeManager: volumeManager,
 		mut:           sync.Mutex{},
 	}
+}
+
+func isCanonicalVolumeID(id string) bool {
+	u, err := uuid.Parse(id)
+	return err == nil && u.String() == id
 }
 
 func (d *driver) getNodeAccessibleTopology() *csi.Topology {

@@ -34,6 +34,9 @@ func (d *driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 	klog.V(4).InfoS("New request", "server", "node", "function", "NodePublishVolume", "request", protosanitizer.StripSecrets(req))
 
 	volumeID := req.GetVolumeId()
+	if !isCanonicalVolumeID(volumeID) {
+		return nil, status.Error(codes.InvalidArgument, "Volume ID must be a canonical UUID")
+	}
 	targetPath := req.GetTargetPath()
 
 	if len(targetPath) == 0 {
@@ -52,6 +55,9 @@ func (d *driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 
 	if volCap.GetMount() == nil {
 		return nil, status.Error(codes.InvalidArgument, "Volume capability access type must be mount")
+	}
+	if d.volumeManager.GetVolumeStateByID(volumeID) == nil {
+		return nil, status.Errorf(codes.NotFound, "Volume with VolumeID %q does not exist", volumeID)
 	}
 
 	mountOptions := []string{"bind"}
