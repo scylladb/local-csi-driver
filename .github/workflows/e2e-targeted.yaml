@@ -51,7 +51,7 @@ jobs:
       statuses: write
     steps:
     - name: Report the run as pending
-      uses: scylladb/scylla-operator/.github/actions/set-commit-status@8622d9636308f9f9e4fb778ed2c73db1ea4dfb42 # master
+      uses: scylladb/scylla-operator/.github/actions/set-commit-status@3a7e909ea08ea19d799f4da0b3f8aeaca14578a0 # master
       with:
         context: ${{ env.STATUS_CONTEXT }}
         state: pending
@@ -92,7 +92,7 @@ jobs:
       statuses: write
     steps:
     - name: Report the result of the run
-      uses: scylladb/scylla-operator/.github/actions/set-commit-status@8622d9636308f9f9e4fb778ed2c73db1ea4dfb42 # master
+      uses: scylladb/scylla-operator/.github/actions/set-commit-status@3a7e909ea08ea19d799f4da0b3f8aeaca14578a0 # master
       with:
         context: ${{ env.STATUS_CONTEXT }}
         needs: ${{ toJSON(needs) }}
