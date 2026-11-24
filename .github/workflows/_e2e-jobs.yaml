@@ -65,7 +65,7 @@ jobs:
         } >> "${GITHUB_OUTPUT}"
 
     - id: select
-      uses: scylladb/scylla-operator/.github/actions/select-jobs@c7af3d5e177cfc684c4eb12e4aa35e0e0a04096c # master
+      uses: scylladb/scylla-operator/.github/actions/select-jobs@4748945abe159aa99dcb2a448f915e854f0e29bc # master
       with:
         patterns: ${{ inputs.jobs || '["*"]' }}
         ids: ${{ steps.list-jobs.outputs.ids }}
